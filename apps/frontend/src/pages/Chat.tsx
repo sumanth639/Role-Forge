@@ -78,9 +78,10 @@ export default function Chat() {
     setMessages((m) => [...m, userMsg]);
 
     const streamingId = `streaming-${Date.now()}`;
+    const backendURL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
     const eventSource = new EventSource(
-      `http://localhost:4000/stream/chat/${chatId}?message=${encodeURIComponent(userText)}&token=${token}`
+      `${backendURL}/stream/chat/${chatId}?message=${encodeURIComponent(userText)}&token=${token}`
     );
 
     eventSource.onmessage = (e) => {
