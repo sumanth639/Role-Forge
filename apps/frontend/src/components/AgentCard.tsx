@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { DynamicIcon } from '@/components/DynamicIcon';
 import { Agent } from '@/content/agents';
 import { IconName } from '@/content/icons';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ArrowUpRight, Trash2, Plus, MoreVertical, Edit } from 'lucide-react';
 import { createChat } from "@/api/chats";
 import { createAgent } from "@/api/agents";
@@ -16,6 +16,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { graphqlRequest } from '@/api/graphql';
 import { useAgents } from "@/contexts/AgentContext";
 
@@ -33,7 +43,10 @@ function buildSystemPrompt(name: string, description: string, mode: string) {
 export function AgentCard({ agent, onDelete, onEdit, variant = 'list' }: AgentCardProps) {
   const navigate = useNavigate();
   const { refreshAgents } = useAgents();
+  
   const [isAdding, setIsAdding] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  
   const isHomePage = variant === 'home';
 
   const colorClasses: Record<string, string> = {
@@ -58,7 +71,6 @@ export function AgentCard({ agent, onDelete, onEdit, variant = 'list' }: AgentCa
     if (isHomePage) return;
     
     try {
-      // 1. First, check if a chat already exists for this agent
       const existing = await graphqlRequest<{ chatByAgent: { id: string } | null }>(
         `query ChatByAgent($agentId: ID!) { 
           chatByAgent(agentId: $agentId) { id } 
@@ -68,15 +80,12 @@ export function AgentCard({ agent, onDelete, onEdit, variant = 'list' }: AgentCa
   
       let chatIdToUse = existing.chatByAgent?.id;
   
-      // 2. If no chat exists, then create it
       if (!chatIdToUse) {
         const chat = await createChat(agent.id);
         chatIdToUse = chat.id;
       }
   
-      // 3. Navigate using the chat ID or agent ID (depending on your Chat page logic)
       navigate(`/chat/${agent.id}`);
-      
     } catch (err) {
       console.error("Chat Error:", err);
       toast.error("Failed to start session");
@@ -102,7 +111,6 @@ export function AgentCard({ agent, onDelete, onEdit, variant = 'list' }: AgentCa
       });
 
       await refreshAgents();
-      
       toast.success(`${agent.name} added to your Armory`);
       navigate("/agents");
     } catch (err) {
@@ -112,87 +120,116 @@ export function AgentCard({ agent, onDelete, onEdit, variant = 'list' }: AgentCa
     }
   }
 
+  const handleConfirmDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onDelete) {
+      onDelete(agent.id);
+    }
+    setShowDeleteDialog(false);
+  };
+
   return (
-    <Card
-      onClick={!isHomePage ? handleOpenChat : undefined}
-      className={`group relative overflow-hidden transition-all duration-300 ${
-        !isHomePage ? 'cursor-pointer hover:shadow-elevated hover:-translate-y-1 border-border' : 'border-dashed border-border/60'
-      }`}
-    >
-      <div className={`absolute inset-0 opacity-[0.03] ${colorClasses[agent.color]?.replace('/15', '')}`} />
-      
-      {isHomePage && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-all z-20">
-          <Button
-            variant="pill"
-            size="sm"
-            className="w-[80%] shadow-2xl translate-y-2 group-hover:translate-y-0 transition-transform"
-            onClick={handleAddAgent}
-            disabled={isAdding}
-          >
-            {isAdding ? "Forging your assistant..." : <><Plus size={16} className="mr-2" /> Add Agent</>}
-          </Button>
-        </div>
-      )}
-
-      {!isHomePage && (onDelete || onEdit) && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+    <>
+      <Card
+        onClick={!isHomePage ? handleOpenChat : undefined}
+        className={`group relative overflow-hidden transition-all duration-300 ${
+          !isHomePage ? 'cursor-pointer hover:shadow-elevated hover:-translate-y-1 border-border' : 'border-dashed border-border/60'
+        }`}
+      >
+        <div className={`absolute inset-0 opacity-[0.03] ${colorClasses[agent.color]?.replace('/15', '')}`} />
+        
+        {isHomePage && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-all z-20">
             <Button
-              variant="ghost"
-              size="icon"
-              className="absolute top-3 right-3 z-10 h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={(e) => e.stopPropagation()}
+              variant="pill"
+              size="sm"
+              className="w-[80%] shadow-2xl translate-y-2 group-hover:translate-y-0 transition-transform"
+              onClick={handleAddAgent}
+              disabled={isAdding}
             >
-              <MoreVertical size={16} />
+              {isAdding ? "Forging..." : <><Plus size={16} className="mr-2" /> Add Agent</>}
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-            {onEdit && (
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(agent); }}>
-                <Edit className="mr-2 h-4 w-4" />
-                Edit
-              </DropdownMenuItem>
-            )}
-            {onDelete && (
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (confirm(`Are you sure you want to delete "${agent.name}"?`)) {
-                    onDelete(agent.id);
-                  }
-                }}
-                className="text-destructive focus:text-destructive"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
-
-      <div className="p-0">
-        <CardHeader className="pb-4 relative">
-          <div className={`flex h-14 w-14 items-center justify-center rounded-2xl ${colorClasses[agent.color]} transition-transform duration-300 group-hover:scale-105`}>
-            <DynamicIcon name={agent.icon as IconName} className={iconColorClasses[agent.color]} size={26} />
           </div>
-          <CardTitle className="mt-5 text-lg flex items-center justify-between">
-            <span className="flex gap-2 items-center">
-              {agent.name}
-              {!isHomePage && <ArrowUpRight size={16} className="text-primary" />}
-            </span>
-            <Badge variant={agent.mode === 'strict' ? 'strict' : 'flexible'}>
-              {agent.mode === 'strict' ? 'Strict' : 'Flexible'}
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="relative">
-          <CardDescription className="line-clamp-2">
-            {agent.description}
-          </CardDescription>
-        </CardContent>
-      </div>
-    </Card>
+        )}
+
+        {!isHomePage && (onDelete || onEdit) && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-3 right-3 z-10 h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background/80"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreVertical size={16} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+              {onEdit && (
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(agent); }}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </DropdownMenuItem>
+              )}
+              {onDelete && (
+                <DropdownMenuItem
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    setShowDeleteDialog(true);
+                  }}
+                  className="text-destructive  focus:bg-destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
+        <div className="p-0">
+          <CardHeader className="pb-4 relative">
+            <div className={`flex h-14 w-14 items-center justify-center rounded-2xl ${colorClasses[agent.color]} transition-transform duration-300 group-hover:scale-105 shadow-sm`}>
+              <DynamicIcon name={agent.icon as IconName} className={iconColorClasses[agent.color]} size={26} />
+            </div>
+            <CardTitle className="mt-5 text-lg flex items-center justify-between">
+              <span className="flex gap-2 items-center">
+                {agent.name}
+                {!isHomePage && <ArrowUpRight size={16} className="text-primary opacity-50 group-hover:opacity-100 transition-opacity" />}
+              </span>
+              <Badge variant={agent.mode === 'strict' ? 'strict' : 'flexible'}>
+                {agent.mode === 'strict' ? 'Strict' : 'Flexible'}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="relative">
+            <CardDescription className="line-clamp-2 leading-relaxed">
+              {agent.description}
+            </CardDescription>
+          </CardContent>
+        </div>
+      </Card>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard this Agent?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <span className="font-semibold text-foreground">"{agent.name}"</span>? 
+              This will remove all associated chat history and cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Agent
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
