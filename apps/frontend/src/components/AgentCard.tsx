@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { graphqlRequest } from '@/api/graphql';
+import { useAgents } from "@/contexts/AgentContext";
 
 interface AgentCardProps {
   agent: Agent;
@@ -31,6 +32,7 @@ function buildSystemPrompt(name: string, description: string, mode: string) {
 
 export function AgentCard({ agent, onDelete, onEdit, variant = 'list' }: AgentCardProps) {
   const navigate = useNavigate();
+  const { refreshAgents } = useAgents();
   const [isAdding, setIsAdding] = useState(false);
   const isHomePage = variant === 'home';
 
@@ -98,6 +100,9 @@ export function AgentCard({ agent, onDelete, onEdit, variant = 'list' }: AgentCa
         systemPrompt: buildSystemPrompt(agent.name, agent.description || "", agent.mode),
         mode: agent.mode.toUpperCase() as "STRICT" | "FLEXIBLE",
       });
+
+      await refreshAgents();
+      
       toast.success(`${agent.name} added to your Armory`);
       navigate("/agents");
     } catch (err) {
