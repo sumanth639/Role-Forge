@@ -61,7 +61,7 @@ const Agents = () => {
         <section>
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-xl font-semibold text-foreground">
-              Your Collection
+              Your Armory
             </h2>
             <p className="text-sm text-muted-foreground">
               {loading && agents.length === 0 ? "Syncing..." : `${agents.length} agents active`}

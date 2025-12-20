@@ -4,16 +4,17 @@ import { Navigation } from '@/components/Navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MessageBubble } from '@/components/MessageBubble';
-import { fetchAgents } from "@/api/agents";
 import { fetchMessages } from "@/api/messages";
 import { Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { graphqlRequest } from '@/api/graphql';
 import { TypingIndicator } from '@/components/ui/TypingIndicator';
+import { useAgents } from "@/contexts/AgentContext"; // Use the context!
 
 export default function Chat() {
   const { agentId } = useParams<{ agentId: string }>();
   const navigate = useNavigate();
+  const { agents } = useAgents(); // Get agents from global state
 
   const [agent, setAgent] = useState<any>(null);
   const [chatId, setChatId] = useState<string | null>(null);
@@ -22,17 +23,25 @@ export default function Chat() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
 
+  // Effect 1: Immediate Agent Setup (No loading needed for this part)
+  useEffect(() => {
+    if (!agentId || agents.length === 0) return;
+    const found = agents.find(a => a.id === agentId);
+    if (found) {
+      setAgent(found);
+    }
+  }, [agentId, agents]);
+
+  // Effect 2: Chat & Message Loading
   useEffect(() => {
     if (!agentId) return;
 
     async function initChat() {
-      setIsLoading(true);
+      // Only show full page loading if we don't have messages yet
+      if (messages.length === 0) setIsLoading(true);
+      
       try {
-        const agents = await fetchAgents();
-        const found = agents.find(a => a.id === agentId);
-        if (!found) return;
-        setAgent(found);
-
+        // Get or Create Chat ID via GraphQL
         const existing = await graphqlRequest<{ chatByAgent: { id: string } | null }>(
           `query ChatByAgent($agentId: ID!) { chatByAgent(agentId: $agentId) { id } }`,
           { agentId }
@@ -49,6 +58,8 @@ export default function Chat() {
         }
 
         setChatId(chatIdToUse);
+        
+        // Fetch historical messages
         const msgs = await fetchMessages(chatIdToUse);
         setMessages(msgs);
       } catch (error) {
@@ -120,18 +131,11 @@ export default function Chat() {
     }
   };
 
-  if (isLoading) {
+  // If agent isn't in context yet and we're loading, show loader
+  if (isLoading && !agent) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Loading encrypted chat...</div>
-      </div>
-    );
-  }
-
-  if (!agent) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Agent not found</p>
+        <div className="animate-pulse text-muted-foreground">Connecting to neural link...</div>
       </div>
     );
   }
@@ -156,7 +160,7 @@ export default function Chat() {
         <div className="mx-auto max-w-3xl px-6 pb-8">
           <div className="relative flex items-center group">
             <Input
-              placeholder={isSending ? "AI is thinking..." : `Message ${agent.name}...`}
+              placeholder={isSending ? "AI is thinking..." : `Message ${agent?.name || 'Agent'}...`}
               value={inputValue}
               disabled={isSending}
               onChange={(e) => setInputValue(e.target.value)}
