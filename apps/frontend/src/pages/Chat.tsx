@@ -4,12 +4,11 @@ import { Navigation } from '@/components/Navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MessageBubble } from '@/components/MessageBubble';
-import { fetchMessages } from "@/api/messages";
 import { Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { graphqlRequest } from '@/api/graphql';
 import { TypingIndicator } from '@/components/ui/TypingIndicator';
-import { useAgents } from "@/contexts/AgentContext"; // Use the context!
+import { useAgents } from "@/contexts/AgentContext";
+import { useChatStream } from '@/hooks/useChatStream'; // Use the context!
 
 export default function Chat() {
   const { agentId } = useParams<{ agentId: string }>();
@@ -23,7 +22,9 @@ export default function Chat() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
 
-  // Effect 1: Immediate Agent Setup (No loading needed for this part)
+  const { isLoading: chatLoading, sendMessage } = useChatStream(agentId, chatId, setChatId, setMessages);
+
+  // Effect: Immediate Agent Setup (No loading needed for this part)
   useEffect(() => {
     if (!agentId || agents.length === 0) return;
     const found = agents.find(a => a.id === agentId);
@@ -32,107 +33,15 @@ export default function Chat() {
     }
   }, [agentId, agents]);
 
-  // Effect 2: Chat & Message Loading
-  useEffect(() => {
-    if (!agentId) return;
-
-    async function initChat() {
-      // Only show full page loading if we don't have messages yet
-      if (messages.length === 0) setIsLoading(true);
-      
-      try {
-        // Get or Create Chat ID via GraphQL
-        const existing = await graphqlRequest<{ chatByAgent: { id: string } | null }>(
-          `query ChatByAgent($agentId: ID!) { chatByAgent(agentId: $agentId) { id } }`,
-          { agentId }
-        );
-
-        let chatIdToUse = existing.chatByAgent?.id;
-
-        if (!chatIdToUse) {
-          const created = await graphqlRequest<{ createChat: { id: string } }>(
-            `mutation CreateChat($agentId: ID!) { createChat(agentId: $agentId) { id } }`,
-            { agentId }
-          );
-          chatIdToUse = created.createChat.id;
-        }
-
-        setChatId(chatIdToUse);
-        
-        // Fetch historical messages
-        const msgs = await fetchMessages(chatIdToUse);
-        setMessages(msgs);
-      } catch (error) {
-        console.error("Failed to load chat", error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    initChat();
-  }, [agentId]);
-
   const handleSendMessage = () => {
-    if (!chatId || !inputValue.trim() || isSending) return;
-
+    if (!inputValue.trim() || isSending) return;
     const userText = inputValue;
-    const token = localStorage.getItem('token');
     setInputValue("");
-    setIsSending(true);
-
-    const userMsg = {
-      id: `user-${Date.now()}`,
-      role: "USER",
-      content: userText,
-      timestamp: "Just now",
-    };
-    setMessages((m) => [...m, userMsg]);
-
-    const streamingId = `streaming-${Date.now()}`;
-    const backendURL = import.meta.env.VITE_API_URL || "http://localhost:4000";
-
-    const eventSource = new EventSource(
-      `${backendURL}/stream/chat/${chatId}?message=${encodeURIComponent(userText)}&token=${token}`
-    );
-
-    eventSource.onmessage = (e) => {
-      if (e.data === "end") return;
-
-      setMessages((m) => {
-        const existingAiMsg = m.find((msg) => msg.id === streamingId);
-
-        if (!existingAiMsg) {
-          return [
-            ...m,
-            {
-              id: streamingId,
-              role: "ASSISTANT",
-              content: e.data,
-            },
-          ];
-        }
-
-        return m.map((msg) =>
-          msg.id === streamingId
-            ? { ...msg, content: msg.content + e.data }
-            : msg
-        );
-      });
-    };
-
-    eventSource.addEventListener("done", () => {
-      eventSource.close();
-      setIsSending(false);
-    });
-
-    eventSource.onerror = () => {
-      eventSource.close();
-      setIsSending(false);
-    }
+    sendMessage(userText, setIsSending);
   };
 
   // If agent isn't in context yet and we're loading, show loader
-  if (isLoading && !agent) {
+  if ((isLoading || chatLoading) && !agent) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Connecting to neural link...</div>

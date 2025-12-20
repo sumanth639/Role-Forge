@@ -10,6 +10,7 @@ import { createChat } from "@/api/chats";
 import { createAgent } from "@/api/agents";
 import { useState } from "react";
 import { toast } from "sonner";
+import { cn, buildSystemPrompt, colorClasses, iconColorClasses } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,10 +37,6 @@ interface AgentCardProps {
   variant?: 'home' | 'list';
 }
 
-function buildSystemPrompt(name: string, description: string, mode: string) {
-  return `You are an AI agent named "${name}".\n\nRole:\n${description}\n\nStrictness: ${mode}.`.trim();
-}
-
 export function AgentCard({ agent, onDelete, onEdit, variant = 'list' }: AgentCardProps) {
   const navigate = useNavigate();
   const { refreshAgents } = useAgents();
@@ -48,24 +45,6 @@ export function AgentCard({ agent, onDelete, onEdit, variant = 'list' }: AgentCa
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   
   const isHomePage = variant === 'home';
-
-  const colorClasses: Record<string, string> = {
-    lavender: 'bg-lavender/15',
-    mint: 'bg-mint/15',
-    peach: 'bg-peach/15',
-    sky: 'bg-sky/15',
-    rose: 'bg-rose/15',
-    amber: 'bg-amber/15',
-  };
-
-  const iconColorClasses: Record<string, string> = {
-    lavender: 'text-lavender',
-    mint: 'text-mint',
-    peach: 'text-peach',
-    sky: 'text-sky',
-    rose: 'text-rose',
-    amber: 'text-amber',
-  };
 
   async function handleOpenChat() {
     if (isHomePage) return;
@@ -92,33 +71,40 @@ export function AgentCard({ agent, onDelete, onEdit, variant = 'list' }: AgentCa
     }
   }
 
-  async function handleAddAgent(e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (!localStorage.getItem('token')) {
-      navigate('/login');
-      return;
-    }
-
-    setIsAdding(true);
-    try {
-      await createAgent({
-        name: agent.name,
-        description: agent.description || "",
-        systemPrompt: buildSystemPrompt(agent.name, agent.description || "", agent.mode),
-        mode: agent.mode.toUpperCase() as "STRICT" | "FLEXIBLE",
-      });
-
-      await refreshAgents();
-      toast.success(`${agent.name} added to your Armory`);
-      navigate("/agents");
-    } catch (err) {
-      toast.error("Error during the forging process.");
-    } finally {
-      setIsAdding(false);
-    }
+async function handleAddAgent(e: React.MouseEvent) {
+  e.preventDefault();
+  e.stopPropagation();
+  
+  if (!localStorage.getItem('token')) {
+    navigate('/login');
+    return;
   }
+
+  setIsAdding(true);
+  try {
+    // This is the function in src/api/agents.ts you just showed me
+    await createAgent({
+      name: agent.name,
+      description: agent.description || "",
+      systemPrompt: buildSystemPrompt(agent.name, agent.description || "", agent.mode),
+      mode: agent.mode.toUpperCase() as "STRICT" | "FLEXIBLE",
+      // CRITICAL FIX: Pass these from the template (agent object)
+      icon: agent.icon,   
+      color: agent.color, 
+    });
+
+    // Refresh global context so the list updates
+    await refreshAgents();
+    
+    toast.success(`${agent.name} added to your Armory`);
+    navigate("/agents");
+  } catch (err) {
+    console.error("Forging Error:", err);
+    toast.error("Error during the forging process.");
+  } finally {
+    setIsAdding(false);
+  }
+}
 
   const handleConfirmDelete = (e: React.MouseEvent) => {
     e.stopPropagation();

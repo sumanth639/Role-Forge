@@ -12,15 +12,14 @@ const COLORS = [
 ] as const;
 
 export function mapApiAgentToUi(
-  agent: ApiAgent,
-  index: number
+  agent: ApiAgent
 ): Agent {
   return {
     id: agent.id,
     name: agent.name,
     description: agent.description ?? "No description provided.",
     mode: agent.mode === "STRICT" ? "strict" : "flexible",
-    icon: availableIcons[index % availableIcons.length],
-    color: COLORS[index % COLORS.length],
+    icon: agent.icon,
+    color: agent.color,
   };
 }

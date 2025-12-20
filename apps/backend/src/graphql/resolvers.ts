@@ -47,6 +47,8 @@ export const resolvers = {
           description: agents.description,
           systemPrompt: agents.systemPrompt,
           mode: agents.mode,
+          icon: agents.icon,
+          color: agents.color,
           createdAt: agents.createdAt,
         })
         .from(agents)
@@ -68,6 +70,8 @@ export const resolvers = {
           description: agents.description,
           systemPrompt: agents.systemPrompt,
           mode: agents.mode,
+          icon: agents.icon,
+          color: agents.color,
           createdAt: agents.createdAt,
         })
         .from(agents)
@@ -209,6 +213,8 @@ chatByAgent: async (_: any, { agentId }: { agentId: string }, ctx: any) => {
           description: input.description,
           systemPrompt: input.systemPrompt,
           mode: input.mode,
+          icon: input.icon || "Brain",
+          color: input.color || "mint",
         })
         .returning({
           id: agents.id,
@@ -216,6 +222,8 @@ chatByAgent: async (_: any, { agentId }: { agentId: string }, ctx: any) => {
           description: agents.description,
           systemPrompt: agents.systemPrompt,
           mode: agents.mode,
+          icon: agents.icon,
+          color: agents.color,
           createdAt: agents.createdAt,
         });
 
@@ -230,6 +238,8 @@ chatByAgent: async (_: any, { agentId }: { agentId: string }, ctx: any) => {
       if (input.description !== undefined) updateData.description = input.description;
       if (input.systemPrompt !== undefined) updateData.systemPrompt = input.systemPrompt;
       if (input.mode !== undefined) updateData.mode = input.mode;
+      if (input.icon !== undefined) updateData.icon = input.icon;
+      if (input.color !== undefined) updateData.color = input.color;
 
       const [agent] = await db
         .update(agents)
@@ -247,6 +257,8 @@ chatByAgent: async (_: any, { agentId }: { agentId: string }, ctx: any) => {
           description: agents.description,
           systemPrompt: agents.systemPrompt,
           mode: agents.mode,
+          icon: agents.icon,
+          color: agents.color,
           createdAt: agents.createdAt,
         });
 

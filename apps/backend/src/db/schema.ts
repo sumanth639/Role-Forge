@@ -64,6 +64,9 @@ export const agents = pgTable("agents", {
 
   mode: agentModeEnum("mode").default("STRICT").notNull(),
 
+  icon: text("icon").default("Brain").notNull(),
+  color: text("color").default("mint").notNull(),
+
   isArchived: boolean("is_archived").default(false).notNull(),
   archivedAt: timestamp("archived_at"),
 

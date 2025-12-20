@@ -12,6 +12,8 @@ export const typeDefs = gql`
     description: String
     systemPrompt: String
     mode: AgentMode!
+    icon: String!
+    color: String!
     createdAt: String!
   }
 
@@ -26,6 +28,8 @@ export const typeDefs = gql`
     description: String
     systemPrompt: String!
     mode: AgentMode!
+    icon: String
+    color: String
   }
 
   input UpdateAgentInput {
@@ -33,6 +37,8 @@ export const typeDefs = gql`
     description: String
     systemPrompt: String
     mode: AgentMode
+    icon: String
+    color: String
   }
 
   type Query {

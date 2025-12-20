@@ -6,7 +6,7 @@ export interface Agent {
   description: string;
   icon: string;
   mode: AgentMode;
-  color: 'lavender' | 'mint' | 'peach' | 'sky' | 'rose' | 'amber';
+  color: string;
 }
 
 export const agents: Agent[] = [

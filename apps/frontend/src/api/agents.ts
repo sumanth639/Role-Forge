@@ -6,6 +6,8 @@ export type ApiAgent = {
   description?: string;
   systemPrompt?: string;
   mode: "STRICT" | "FLEXIBLE";
+  icon: string;
+  color: string;
   createdAt: string;
 };
 
@@ -18,6 +20,8 @@ export async function fetchAgents(): Promise<ApiAgent[]> {
         description
         systemPrompt
         mode
+        icon
+        color
         createdAt
       }
     }
@@ -35,6 +39,8 @@ export async function fetchAgent(id: string): Promise<ApiAgent> {
         description
         systemPrompt
         mode
+        icon
+        color
         createdAt
       }
     }
@@ -48,6 +54,8 @@ export async function createAgent(input: {
   description?: string;
   systemPrompt: string;
   mode: "STRICT" | "FLEXIBLE";
+  icon?: string;
+  color?: string;
 }) {
   const data = await graphqlRequest<{
     createAgent: {
@@ -55,6 +63,8 @@ export async function createAgent(input: {
       name: string;
       description?: string;
       mode: "STRICT" | "FLEXIBLE";
+      icon: string;
+      color: string;
       createdAt: string;
     };
   }>(
@@ -65,6 +75,8 @@ export async function createAgent(input: {
         name
         description
         mode
+        icon
+        color
         createdAt
       }
     }
@@ -80,6 +92,8 @@ export async function updateAgent(id: string, input: {
   description?: string;
   systemPrompt?: string;
   mode?: "STRICT" | "FLEXIBLE";
+  icon?: string;
+  color?: string;
 }) {
   const data = await graphqlRequest<{
     updateAgent: {
@@ -88,6 +102,8 @@ export async function updateAgent(id: string, input: {
       description?: string;
       systemPrompt?: string;
       mode: "STRICT" | "FLEXIBLE";
+      icon: string;
+      color: string;
       createdAt: string;
     };
   }>(
@@ -99,6 +115,8 @@ export async function updateAgent(id: string, input: {
         description
         systemPrompt
         mode
+        icon
+        color
         createdAt
       }
     }
