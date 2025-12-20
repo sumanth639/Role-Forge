@@ -11,6 +11,7 @@ import Chat from "./pages/Chat";
 import Agents from "./pages/Agents";
 import NotFound from "./pages/NotFound";
 import { getAuthToken } from "@/api/auth";
+import { AgentProvider } from "@/contexts/AgentContext";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
+      <AgentProvider>
       <Toaster />
       <Sonner />
       <BrowserRouter>
@@ -43,6 +45,7 @@ const App = () => (
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
+      </AgentProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

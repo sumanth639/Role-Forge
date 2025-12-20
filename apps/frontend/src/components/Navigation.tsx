@@ -63,7 +63,7 @@ export function Navigation() {
               <Button asChild variant="pill" size="sm">
                 <Link to="/create">
                   <Plus size={16} />
-                  <span>New Agent</span>
+                  <span>Forge Agent</span>
                 </Link>
               </Button>
             )}
