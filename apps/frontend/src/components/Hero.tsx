@@ -12,7 +12,7 @@ export function Hero() {
   <span className="text-primary">AI Agents</span> for Any Reality
 </h1>
         <p className="opacity-0 animate-fade-up text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed mb-8" style={{ animationDelay: '200ms' }}>
-          Create and customize intelligent AI assistants tailored to your needs. Build agents for coding, writing, learning, mentoring, and any role you can imagine.
+            Forge and customize intelligent AI assistants tailored to your needs. Build agents for coding, writing, learning, mentoring, and any role you can imagine.
         </p>
 
         {/* CTA Buttons */}
@@ -32,7 +32,7 @@ export function Hero() {
             to="/create" 
             className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors group"
           >
-            Create your first agent 
+            Forge your first agent 
             <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
           </Link>
         </div>

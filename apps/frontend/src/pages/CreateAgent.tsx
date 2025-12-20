@@ -84,7 +84,7 @@ export default function CreateAgent() {
           {/* Form */}
           <div className="space-y-8 opacity-0 animate-fade-up" style={{ animationDelay: '0ms' }}>
             <div>
-              <h1 className=" text-3xl text-foreground mb-2">Create New Agent</h1>
+              <h1 className=" text-3xl text-foreground mb-2">Forge New Agent</h1>
               <p className="text-muted-foreground">
                 Design a custom AI agent tailored to your needs
               </p>
@@ -94,7 +94,7 @@ export default function CreateAgent() {
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Agent Name</label>
                 <Input
-                  placeholder="e.g., Marketing Strategist"
+                  placeholder="Forge a new persona..."
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                 />
@@ -213,13 +213,13 @@ export default function CreateAgent() {
     navigate("/agents");
     }catch (err) {
     console.error(err);
-    alert("Failed to create agent");
+    alert("Failed to forge agent");
   }
 
 
   }}
 >
-  Create Agent
+  Forge Agent
 </Button>
 
             </div>

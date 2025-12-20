@@ -143,7 +143,7 @@ export function EditAgentDialog({ agent, open, onOpenChange, onSuccess, systemPr
               Cancel
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? 'Saving...' : 'Save Changes'}
+              {isLoading ? 'Forging...' : 'Forge Changes'}
             </Button>
           </div>
         </form>

@@ -98,10 +98,10 @@ export function AgentCard({ agent, onDelete, onEdit, variant = 'list' }: AgentCa
         systemPrompt: buildSystemPrompt(agent.name, agent.description || "", agent.mode),
         mode: agent.mode.toUpperCase() as "STRICT" | "FLEXIBLE",
       });
-      toast.success(`${agent.name} added to your workspace`);
+      toast.success(`${agent.name} added to your Armory`);
       navigate("/agents");
     } catch (err) {
-      toast.error("Error forging agent");
+      toast.error("Error during the forging process.");
     } finally {
       setIsAdding(false);
     }
@@ -125,7 +125,7 @@ export function AgentCard({ agent, onDelete, onEdit, variant = 'list' }: AgentCa
             onClick={handleAddAgent}
             disabled={isAdding}
           >
-            {isAdding ? "Forging..." : <><Plus size={16} className="mr-2" /> Add Agent</>}
+            {isAdding ? "Forging your assistant..." : <><Plus size={16} className="mr-2" /> Add Agent</>}
           </Button>
         </div>
       )}
