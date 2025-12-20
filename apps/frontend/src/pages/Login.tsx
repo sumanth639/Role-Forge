@@ -1,14 +1,57 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ArrowLeft, Eye, EyeOff, Github } from 'lucide-react';
+import { login, getAuthToken } from '@/api/auth';
 
 export default function Login() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  // Redirect to home if already logged in
+  useEffect(() => {
+    const token = getAuthToken();
+    if (token) {
+      navigate("/", { replace: true });
+      return;
+    }
+
+    // Handle OAuth callback token
+    const oauthToken = searchParams.get('token');
+    if (oauthToken) {
+      localStorage.setItem('token', oauthToken);
+      // Check for redirect destination, otherwise go to home
+      const redirectTo = searchParams.get('redirect');
+      navigate(redirectTo ? decodeURIComponent(redirectTo) : "/", { replace: true });
+    }
+  }, [searchParams, navigate]);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      const res = await login(email, password);
+      localStorage.setItem('token', res.token);
+      
+      // Redirect to intended destination or home
+      const redirectTo = searchParams.get('redirect');
+      navigate(redirectTo ? decodeURIComponent(redirectTo) : "/", { replace: true });
+    } catch (err) {
+      console.error("Login failed", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSocialLogin = (provider: 'google' | 'github') => {
+    window.location.href = `${import.meta.env.VITE_API_URL}/auth/${provider}`;
+  };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
@@ -20,19 +63,19 @@ export default function Login() {
           <ArrowLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
           <span className="text-sm font-medium">Back to home</span>
         </Link>
-
+        
         <Card className="opacity-0 animate-fade-up shadow-elevated">
           <CardHeader className="text-center pb-2">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary shadow-soft">
               <span className="text-lg font-bold text-primary-foreground">R</span>
             </div>
-            <CardTitle className="text-2xl ">Welcome back</CardTitle>
+            <CardTitle className="text-2xl">Welcome back</CardTitle>
             <CardDescription className="mt-2">
               Sign in to your Roleforge account
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
-            <form className="space-y-4">
+            <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground" htmlFor="email">
                   Email
@@ -43,6 +86,7 @@ export default function Login() {
                   placeholder="you@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  required
                 />
               </div>
 
@@ -58,6 +102,7 @@ export default function Login() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="pr-11"
+                    required
                   />
                   <button
                     type="button"
@@ -79,8 +124,8 @@ export default function Login() {
                 </a>
               </div>
 
-              <Button type="submit" className="w-full" size="lg">
-                Sign in
+              <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+                {isLoading ? "Signing in..." : "Sign in"}
               </Button>
             </form>
 
@@ -94,7 +139,7 @@ export default function Login() {
             </div>
 
             <div className="flex gap-3">
-              <Button variant="outline" className="flex-1" size="lg">
+              <Button type="button" variant="outline" className="flex-1" size="lg" onClick={() => handleSocialLogin('google')}>
                 <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                   <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                   <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -104,7 +149,7 @@ export default function Login() {
                 Google
               </Button>
               
-              <Button variant="outline" className="flex-1" size="lg">
+              <Button type="button" variant="outline" className="flex-1" size="lg" onClick={() => handleSocialLogin('github')}>
                 <Github className="w-5 h-5 mr-2" />
                 GitHub
               </Button>

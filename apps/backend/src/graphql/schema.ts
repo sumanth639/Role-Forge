@@ -10,6 +10,7 @@ export const typeDefs = gql`
     id: ID!
     name: String!
     description: String
+    systemPrompt: String
     mode: AgentMode!
     createdAt: String!
   }
@@ -27,6 +28,13 @@ export const typeDefs = gql`
     mode: AgentMode!
   }
 
+  input UpdateAgentInput {
+    name: String
+    description: String
+    systemPrompt: String
+    mode: AgentMode
+  }
+
   type Query {
     health: String!
     agents: [Agent!]!
@@ -37,6 +45,7 @@ export const typeDefs = gql`
 
   type Mutation {
     createAgent(input: CreateAgentInput!): Agent!
+    updateAgent(id: ID!, input: UpdateAgentInput!): Agent!
     deleteAgent(id: ID!): Boolean!
 
     createChat(agentId: ID!): Chat!
@@ -59,8 +68,34 @@ extend type Query {
 }
 
 extend type Mutation {
-  sendMessage(chatId: ID!, content: String!): Message!
+  sendMessage(chatId: ID!, content: String!): [Message!]!
 }
+
+extend type Query {
+  chatByAgent(agentId: ID!): Chat
+}
+
+
+type AuthPayload {
+  token: String!
+  user: User!
+}
+
+type User {
+  id: ID!
+  email: String!
+  name: String
+}
+
+extend type Mutation {
+  signup(name: String!, email: String!, password: String!): AuthPayload!
+  login(email: String!, password: String!): AuthPayload!
+}
+
+extend type Query {
+  me: User
+}
+
 
 `;
 

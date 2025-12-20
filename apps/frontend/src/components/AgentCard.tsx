@@ -4,15 +4,36 @@ import { Button } from '@/components/ui/button';
 import { DynamicIcon } from '@/components/DynamicIcon';
 import { Agent } from '@/content/agents';
 import { IconName } from '@/content/icons';
-import { Link } from 'react-router-dom';
-import { ArrowUpRight, Trash2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowUpRight, Trash2, Plus, MoreVertical, Edit } from 'lucide-react';
+import { createChat } from "@/api/chats";
+import { createAgent } from "@/api/agents";
+import { useState } from "react";
+import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { graphqlRequest } from '@/api/graphql';
 
 interface AgentCardProps {
   agent: Agent;
   onDelete?: (agentId: string) => void;
+  onEdit?: (agent: Agent) => void;
+  variant?: 'home' | 'list';
 }
 
-export function AgentCard({ agent, onDelete }: AgentCardProps) {
+function buildSystemPrompt(name: string, description: string, mode: string) {
+  return `You are an AI agent named "${name}".\n\nRole:\n${description}\n\nStrictness: ${mode}.`.trim();
+}
+
+export function AgentCard({ agent, onDelete, onEdit, variant = 'list' }: AgentCardProps) {
+  const navigate = useNavigate();
+  const [isAdding, setIsAdding] = useState(false);
+  const isHomePage = variant === 'home';
+
   const colorClasses: Record<string, string> = {
     lavender: 'bg-lavender/15',
     mint: 'bg-mint/15',
@@ -31,51 +52,134 @@ export function AgentCard({ agent, onDelete }: AgentCardProps) {
     amber: 'text-amber',
   };
 
-  const handleDelete = (e: React.MouseEvent) => {
+  async function handleOpenChat() {
+    if (isHomePage) return;
+    
+    try {
+      // 1. First, check if a chat already exists for this agent
+      const existing = await graphqlRequest<{ chatByAgent: { id: string } | null }>(
+        `query ChatByAgent($agentId: ID!) { 
+          chatByAgent(agentId: $agentId) { id } 
+        }`,
+        { agentId: agent.id }
+      );
+  
+      let chatIdToUse = existing.chatByAgent?.id;
+  
+      // 2. If no chat exists, then create it
+      if (!chatIdToUse) {
+        const chat = await createChat(agent.id);
+        chatIdToUse = chat.id;
+      }
+  
+      // 3. Navigate using the chat ID or agent ID (depending on your Chat page logic)
+      navigate(`/chat/${agent.id}`);
+      
+    } catch (err) {
+      console.error("Chat Error:", err);
+      toast.error("Failed to start session");
+    }
+  }
+
+  async function handleAddAgent(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (onDelete) {
-      onDelete(agent.id);
+    
+    if (!localStorage.getItem('token')) {
+      navigate('/login');
+      return;
     }
-  };
+
+    setIsAdding(true);
+    try {
+      await createAgent({
+        name: agent.name,
+        description: agent.description || "",
+        systemPrompt: buildSystemPrompt(agent.name, agent.description || "", agent.mode),
+        mode: agent.mode.toUpperCase() as "STRICT" | "FLEXIBLE",
+      });
+      toast.success(`${agent.name} added to your workspace`);
+      navigate("/agents");
+    } catch (err) {
+      toast.error("Error forging agent");
+    } finally {
+      setIsAdding(false);
+    }
+  }
 
   return (
-    <Card className="group cursor-pointer hover:shadow-elevated hover:-translate-y-1 relative overflow-hidden">
-      {/* Subtle gradient overlay */}
+    <Card
+      onClick={!isHomePage ? handleOpenChat : undefined}
+      className={`group relative overflow-hidden transition-all duration-300 ${
+        !isHomePage ? 'cursor-pointer hover:shadow-elevated hover:-translate-y-1 border-border' : 'border-dashed border-border/60'
+      }`}
+    >
       <div className={`absolute inset-0 opacity-[0.03] ${colorClasses[agent.color]?.replace('/15', '')}`} />
       
-      {/* Delete Button */}
-      {onDelete && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="absolute top-3 right-3 z-10 h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive"
-          onClick={handleDelete}
-          title="Delete agent"
-        >
-          <Trash2 size={14} />
-        </Button>
+      {isHomePage && (
+        <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-all z-20">
+          <Button
+            variant="pill"
+            size="sm"
+            className="w-[80%] shadow-2xl translate-y-2 group-hover:translate-y-0 transition-transform"
+            onClick={handleAddAgent}
+            disabled={isAdding}
+          >
+            {isAdding ? "Forging..." : <><Plus size={16} className="mr-2" /> Add Agent</>}
+          </Button>
+        </div>
       )}
-      
-      <Link to={`/chat/${agent.id}`} className="block">
+
+      {!isHomePage && (onDelete || onEdit) && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-3 right-3 z-10 h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MoreVertical size={16} />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+            {onEdit && (
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(agent); }}>
+                <Edit className="mr-2 h-4 w-4" />
+                Edit
+              </DropdownMenuItem>
+            )}
+            {onDelete && (
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (confirm(`Are you sure you want to delete "${agent.name}"?`)) {
+                    onDelete(agent.id);
+                  }
+                }}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+
+      <div className="p-0">
         <CardHeader className="pb-4 relative">
-          <div className="flex items-start justify-between">
-            <div className={`flex h-14 w-14 items-center justify-center rounded-2xl ${colorClasses[agent.color]} transition-transform duration-300 group-hover:scale-105`}>
-              <DynamicIcon 
-                name={agent.icon as IconName} 
-                className={iconColorClasses[agent.color]} 
-                size={26} 
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant={agent.mode === 'strict' ? 'strict' : 'flexible'}>
-                {agent.mode === 'strict' ? 'Strict' : 'Flexible'}
-              </Badge>
-            </div>
+          <div className={`flex h-14 w-14 items-center justify-center rounded-2xl ${colorClasses[agent.color]} transition-transform duration-300 group-hover:scale-105`}>
+            <DynamicIcon name={agent.icon as IconName} className={iconColorClasses[agent.color]} size={26} />
           </div>
-          <CardTitle className="mt-5 text-lg flex items-center gap-2 group-hover:text-primary transition-colors">
-            {agent.name}
-            <ArrowUpRight size={16} className="opacity-0 -translate-y-1 translate-x-1 group-hover:opacity-100 group-hover:translate-y-0 group-hover:translate-x-0 transition-all duration-200 text-primary" />
+          <CardTitle className="mt-5 text-lg flex items-center justify-between">
+            <span className="flex gap-2 items-center">
+              {agent.name}
+              {!isHomePage && <ArrowUpRight size={16} className="text-primary" />}
+            </span>
+            <Badge variant={agent.mode === 'strict' ? 'strict' : 'flexible'}>
+              {agent.mode === 'strict' ? 'Strict' : 'Flexible'}
+            </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="relative">
@@ -83,7 +187,7 @@ export function AgentCard({ agent, onDelete }: AgentCardProps) {
             {agent.description}
           </CardDescription>
         </CardContent>
-      </Link>
+      </div>
     </Card>
   );
 }

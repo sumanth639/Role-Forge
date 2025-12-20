@@ -1,8 +1,56 @@
 import { Navigation } from '@/components/Navigation';
 import { AgentCard } from '@/components/AgentCard';
-import { agents } from '@/content/agents';
+import { EditAgentDialog } from '@/components/EditAgentDialog';
+import { useEffect, useState } from "react";
+import { fetchAgents, deleteAgent, fetchAgent, type ApiAgent } from "@/api/agents";
+import { Agent } from "@/content/agents";
+import { mapApiAgentToUi } from "@/mappers/agentMapper";
+import { toast } from "sonner";
 
 const Agents = () => {
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingSystemPrompt, setEditingSystemPrompt] = useState<string>('');
+
+  const loadAgents = () => {
+    fetchAgents()
+      .then((apiAgents) => {
+        const uiAgents = apiAgents.map(mapApiAgentToUi);
+        setAgents(uiAgents);
+      })
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadAgents();
+  }, []);
+
+  const handleEdit = async (agent: Agent) => {
+    try {
+      const apiAgent = await fetchAgent(agent.id);
+      setEditingSystemPrompt(apiAgent.systemPrompt || '');
+      setEditingAgent(agent);
+      setEditDialogOpen(true);
+    } catch (err) {
+      console.error('Failed to fetch agent details:', err);
+      toast.error('Failed to load agent details');
+    }
+  };
+
+  const handleDelete = async (agentId: string) => {
+    try {
+      await deleteAgent(agentId);
+      toast.success('Agent deleted successfully');
+      loadAgents(); // Refresh the list
+    } catch (err) {
+      console.error('Failed to delete agent:', err);
+      toast.error('Failed to delete agent');
+    }
+  };
+
+
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
@@ -31,11 +79,25 @@ const Agents = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {agents.map((agent) => (
-              <AgentCard key={agent.id} agent={agent} />
+              <AgentCard 
+                key={agent.id} 
+                agent={agent} 
+                variant="list"
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
             ))}
           </div>
         </section>
       </main>
+
+      <EditAgentDialog
+        agent={editingAgent}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onSuccess={loadAgents}
+        systemPrompt={editingSystemPrompt}
+      />
     </div>
   );
 };

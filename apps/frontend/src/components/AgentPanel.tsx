@@ -6,13 +6,13 @@ import { DynamicIcon } from '@/components/DynamicIcon';
 import { IconName } from '@/content/icons';
 import { cn } from '@/lib/utils';
 
-interface ChatHistoryPanelProps {
+interface AgentPanelProps {
   agents: Agent[];
   currentAgentId: string;
   onSelectAgent: (agentId: string) => void;
 }
 
-export function ChatHistoryPanel({ agents, currentAgentId, onSelectAgent }: ChatHistoryPanelProps) {
+export function AgentPanel({ agents, currentAgentId, onSelectAgent }: AgentPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const colorClasses: Record<string, string> = {

@@ -15,11 +15,11 @@ export async function streamGemini({
   onToken,
 }: {
   systemPrompt: string;
-  messages: { role: "user" | "assistant"; content: string }[];
+  messages: { role: "user" | "model"; content: string }[];
   onToken: (token: string) => void;
 }) {
   const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
+    model: "gemini-2.5-flash-lite",
     systemInstruction: systemPrompt,
   });
 

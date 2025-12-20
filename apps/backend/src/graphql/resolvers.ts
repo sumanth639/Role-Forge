@@ -9,10 +9,30 @@ import { checkRateLimit } from "../limits/rates.js";
 import { estimateTokens } from "../limits/usage.js";
 import { tokenUsage } from "../db/schema.js";
 
+import bcrypt from "bcryptjs";
+import { users } from "../db/schema.js";
+import { signJwt } from "../auth/jwt.js";
+
 
 export const resolvers = {
   Query: {
     health: () => "Roleforge backend running 🚀",
+
+      me: async (_: any, __: any, ctx: any) => {
+      if (!ctx.user) return null;
+
+      const [user] = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          name: users.name,
+        })
+        .from(users)
+        .where(eq(users.id, ctx.user.id))
+        .limit(1);
+
+      return user ?? null;
+    },
 
     // --------------------
     // AGENTS
@@ -25,6 +45,7 @@ export const resolvers = {
           id: agents.id,
           name: agents.name,
           description: agents.description,
+          systemPrompt: agents.systemPrompt,
           mode: agents.mode,
           createdAt: agents.createdAt,
         })
@@ -45,6 +66,7 @@ export const resolvers = {
           id: agents.id,
           name: agents.name,
           description: agents.description,
+          systemPrompt: agents.systemPrompt,
           mode: agents.mode,
           createdAt: agents.createdAt,
         })
@@ -52,7 +74,8 @@ export const resolvers = {
         .where(
           and(
             eq(agents.id, id),
-            eq(agents.userId, ctx.user.id)
+            eq(agents.userId, ctx.user.id),
+            eq(agents.isArchived, false)
           )
         )
         .limit(1);
@@ -74,6 +97,7 @@ export const resolvers = {
             id: agents.id,
             name: agents.name,
             description: agents.description,
+            systemPrompt: agents.systemPrompt,
             mode: agents.mode,
             createdAt: agents.createdAt,
           },
@@ -94,6 +118,7 @@ export const resolvers = {
             id: agents.id,
             name: agents.name,
             description: agents.description,
+            systemPrompt: agents.systemPrompt,
             mode: agents.mode,
             createdAt: agents.createdAt,
           },
@@ -115,19 +140,58 @@ export const resolvers = {
     // MESSAGES
     // --------------------
     messages: async (_: any, { chatId }: { chatId: string }, ctx: any) => {
-      if (!ctx.user) throw new Error("Unauthorized");
+  if (!ctx.user) throw new Error("Unauthorized");
 
-      return db
-        .select({
-          id: messages.id,
-          role: messages.role,
-          content: messages.content,
-          createdAt: messages.createdAt,
-        })
-        .from(messages)
-        .where(eq(messages.chatId, chatId))
-        .orderBy(messages.createdAt);
-    },
+  return db
+    .select({
+      id: messages.id,
+      role: messages.role,
+      content: messages.content,
+      createdAt: messages.createdAt,
+    })
+    .from(messages)
+    .innerJoin(chats, eq(messages.chatId, chats.id))
+    .where(
+      and(
+        eq(messages.chatId, chatId),
+        eq(chats.userId, ctx.user.id)
+      )
+    )
+    .orderBy(messages.createdAt);
+},
+
+//----------------------
+// Chatby agent
+//----------------------
+chatByAgent: async (_: any, { agentId }: { agentId: string }, ctx: any) => {
+  if (!ctx.user) throw new Error("Unauthorized");
+
+  const chat = await db
+    .select({
+      id: chats.id,
+      createdAt: chats.createdAt,
+      agent: {
+        id: agents.id,
+        name: agents.name,
+        description: agents.description,
+        mode: agents.mode,
+        createdAt: agents.createdAt,
+      },
+    })
+    .from(chats)
+    .innerJoin(agents, eq(chats.agentId, agents.id))
+    .where(
+      and(
+        eq(chats.userId, ctx.user.id),
+        eq(chats.agentId, agentId)
+      )
+    )
+    .limit(1);
+
+  return chat[0] ?? null;
+},
+
+
   },
 
   Mutation: {
@@ -150,9 +214,43 @@ export const resolvers = {
           id: agents.id,
           name: agents.name,
           description: agents.description,
+          systemPrompt: agents.systemPrompt,
           mode: agents.mode,
           createdAt: agents.createdAt,
         });
+
+      return agent;
+    },
+
+    updateAgent: async (_: any, { id, input }: { id: string; input: any }, ctx: any) => {
+      if (!ctx.user) throw new Error("Unauthorized");
+
+      const updateData: any = {};
+      if (input.name !== undefined) updateData.name = input.name;
+      if (input.description !== undefined) updateData.description = input.description;
+      if (input.systemPrompt !== undefined) updateData.systemPrompt = input.systemPrompt;
+      if (input.mode !== undefined) updateData.mode = input.mode;
+
+      const [agent] = await db
+        .update(agents)
+        .set(updateData)
+        .where(
+          and(
+            eq(agents.id, id),
+            eq(agents.userId, ctx.user.id),
+            eq(agents.isArchived, false)
+          )
+        )
+        .returning({
+          id: agents.id,
+          name: agents.name,
+          description: agents.description,
+          systemPrompt: agents.systemPrompt,
+          mode: agents.mode,
+          createdAt: agents.createdAt,
+        });
+
+      if (!agent) throw new Error("Agent not found");
 
       return agent;
     },
@@ -179,41 +277,58 @@ export const resolvers = {
     // --------------------
     // CHATS
     // --------------------
-    createChat: async (_: any, { agentId }: { agentId: string }, ctx: any) => {
-      if (!ctx.user) throw new Error("Unauthorized");
 
-      const agent = await db
-        .select()
-        .from(agents)
-        .where(
-          and(
-            eq(agents.id, agentId),
-            eq(agents.userId, ctx.user.id),
-            eq(agents.isArchived, false)
-          )
-        )
-        .limit(1);
+createChat: async (_: any, { agentId }: { agentId: string }, ctx: any) => {
+  if (!ctx.user) throw new Error("Unauthorized");
 
-      if (!agent.length) {
-        throw new Error("Agent not found or archived");
-      }
+  // 1. Check if chat already exists
+  const [existingChat] = await db
+    .select()
+    .from(chats)
+    .where(
+      and(
+        eq(chats.userId, ctx.user.id),
+        eq(chats.agentId, agentId)
+      )
+    )
+    .limit(1);
 
-      const [chat] = await db
-        .insert(chats)
-        .values({
-          userId: ctx.user.id,
-          agentId,
-        })
-        .returning({
-          id: chats.id,
-          createdAt: chats.createdAt,
-        });
+  if (existingChat) {
+    // Fetch the agent info to return the full object
+    const [agent] = await db.select().from(agents).where(eq(agents.id, agentId)).limit(1);
+    return { ...existingChat, agent };
+  }
 
-      return {
-        ...chat,
-        agent: agent[0],
-      };
-    },
+  // 2. If it doesn't exist, proceed with insertion
+  const agent = await db
+    .select()
+    .from(agents)
+    .where(
+      and(
+        eq(agents.id, agentId),
+        eq(agents.userId, ctx.user.id),
+        eq(agents.isArchived, false)
+      )
+    )
+    .limit(1);
+
+  if (!agent.length) {
+    throw new Error("Agent not found or archived");
+  }
+
+  const [chat] = await db
+    .insert(chats)
+    .values({
+      userId: ctx.user.id,
+      agentId,
+    })
+    .returning();
+
+  return {
+    ...chat,
+    agent: agent[0],
+  };
+},
 
     // --------------------
     // SEND MESSAGE (GEMINI)
@@ -298,12 +413,13 @@ export const resolvers = {
 
       // 7️⃣ Call Gemini
       const aiResponse = await runGemini({
-        systemPrompt: finalSystemPrompt,
-        messages: history.map((m) => ({
-          role: m.role.toLowerCase() as "user" | "assistant",
-          content: m.content,
-        })),
-      });
+  systemPrompt: finalSystemPrompt,
+  messages: history.map((m) => ({
+    role: m.role === "USER" ? "user" : "assistant",
+    content: m.content,
+  })),
+});
+
 
       // 8️⃣ Track token usage AFTER Gemini response
       const totalTokens =
@@ -316,17 +432,158 @@ export const resolvers = {
         model: "gemini-1.5-flash",
       });
 
-      // 9️⃣ Save assistant message
-      const [assistantMessage] = await db
-        .insert(messages)
-        .values({
-          chatId,
-          role: "ASSISTANT",
-          content: aiResponse,
-        })
-        .returning();
+const [assistantMessage] = await db
+  .insert(messages)
+  .values({
+    chatId,
+    role: "ASSISTANT",
+    content: aiResponse,
+  })
+  .returning();
 
-      return assistantMessage;
+// 🔟 Return BOTH messages (user + assistant)
+return [
+  {
+    id: "temp-user",
+    role: "USER",
+    content,
+    createdAt: new Date().toISOString(),
+  },
+  assistantMessage,]
+
     },
+
+    // --------------------
+    // SignUp
+    // --------------------
+    signup: async (
+      _: unknown,
+      {
+        name,
+        email,
+        password,
+      }: { name: string; email: string; password: string }
+    ) => {
+      // 1️⃣ Validate input
+      if (!email || !password || !name) {
+        throw new Error("All fields are required");
+      }
+
+      if (password.length < 8) {
+        throw new Error("Password must be at least 8 characters");
+      }
+
+      // 2️⃣ Check if user already exists
+      const existing = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+
+      if (existing.length) {
+        throw new Error("User already exists with this email");
+      }
+
+      // 3️⃣ Hash password
+      const passwordHash = await bcrypt.hash(password, 10);
+
+      // 4️⃣ Insert user
+      const inserted = await db
+        .insert(users)
+        .values({
+          name,
+          email,
+          passwordHash,
+        })
+        .returning({
+          id: users.id,
+          email: users.email,
+          name: users.name,
+        });
+
+      if (!inserted.length) {
+        throw new Error("Failed to create user");
+      }
+
+     const [user] = inserted;
+
+if (!user) {
+  throw new Error("Failed to create user");
+}
+
+      // 5️⃣ Issue JWT
+      const token = signJwt({ userId: user.id });
+
+      // 6️⃣ Return auth payload
+      return {
+        token,
+        user,
+      };},
+
+
+    // --------------------
+    // Login
+    // --------------------
+    login: async (
+      _: unknown,
+      { email, password }: { email: string; password: string }
+    ) => {
+      // 1️⃣ Validate input
+      if (!email || !password) {
+        throw new Error("Email and password are required");
+      }
+
+      // 2️⃣ Find user
+      const result = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          name: users.name,
+          passwordHash: users.passwordHash,
+        })
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+
+      if (!result.length) {
+        throw new Error("Invalid credentials");
+      }
+
+      const [user] = await db
+  .select({
+    id: users.id,
+    email: users.email,
+    name: users.name,
+    passwordHash: users.passwordHash,
+  })
+  .from(users)
+  .where(eq(users.email, email))
+  .limit(1);
+
+if (!user || !user.passwordHash) {
+  throw new Error("Invalid credentials");
+}
+
+const isValid = await bcrypt.compare(password, user.passwordHash);
+
+      if (!isValid) {
+        throw new Error("Invalid credentials");
+      }
+
+      // 4️⃣ Issue JWT
+      const token = signJwt({ userId: user.id });
+
+      // 5️⃣ Return auth payload
+      return {
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+        },
+      };
+    },
+     
+
   },
 };

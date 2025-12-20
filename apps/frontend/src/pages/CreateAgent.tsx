@@ -9,6 +9,28 @@ import { DynamicIcon } from '@/components/DynamicIcon';
 import { availableIcons, IconName } from '@/content/icons';
 import { ArrowLeft, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { createAgent } from "@/api/agents";
+
+function buildSystemPrompt(
+  name: string,
+  description: string,
+  mode: "strict" | "flexible"
+) {
+  return `
+You are an AI agent named "${name}".
+
+Your role:
+${description}
+
+Behavior rules:
+${
+  mode === "strict"
+    ? "Be precise, follow instructions strictly, avoid assumptions."
+    : "Be helpful, flexible, and explain clearly with examples when useful."
+}
+`.trim();
+}
+
 
 export default function CreateAgent() {
   const navigate = useNavigate();
@@ -79,7 +101,7 @@ export default function CreateAgent() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Description</label>
+                <label className="text-sm font-medium text-foreground">System Prompt</label>
                 <textarea
                   className="flex min-h-[120px] w-full rounded-xl border border-border bg-card px-4 py-3 text-sm ring-offset-background transition-all duration-200 placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:border-transparent disabled:cursor-not-allowed disabled:opacity-50 resize-none"
                   placeholder="Describe what this agent does and how it can help..."
@@ -171,9 +193,35 @@ export default function CreateAgent() {
                 </div>
               </div>
 
-              <Button size="lg" className="w-full" onClick={() => navigate('/')}>
-                Create Agent
-              </Button>
+              <Button
+  size="lg"
+  className="w-full"
+  onClick={async () => {
+    if (!name.trim()) return;
+    console.log("Agent cretion stated")
+
+
+    try{
+
+    await createAgent({
+      name,
+      description,
+      systemPrompt: buildSystemPrompt(name, description, mode),
+      mode: mode === "strict" ? "STRICT" : "FLEXIBLE",
+    });
+
+    navigate("/agents");
+    }catch (err) {
+    console.error(err);
+    alert("Failed to create agent");
+  }
+
+
+  }}
+>
+  Create Agent
+</Button>
+
             </div>
           </div>
 

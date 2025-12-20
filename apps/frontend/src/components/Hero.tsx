@@ -7,12 +7,12 @@ export function Hero() {
     <header className="relative mb-16 pt-8">
       {/* Hero Content Section */}
       <div className="text-center mb-12">
-        <h1 className="opacity-0 animate-fade-up text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-foreground mb-6 text-balance leading-tight tracking-tight max-w-4xl mx-auto" style={{ animationDelay: '100ms' }}>
-          Pre-built method for{' '}
-          <span className="text-primary">AI Agent</span> Performance
-        </h1>
+      <h1 className="opacity-0 animate-fade-up text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-foreground mb-6 text-balance leading-tight tracking-tight max-w-5xl mx-auto" style={{ animationDelay: '100ms' }}>
+  Forge Your Own Intelligent{' '}
+  <span className="text-primary">AI Agents</span> for Any Reality
+</h1>
         <p className="opacity-0 animate-fade-up text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed mb-8" style={{ animationDelay: '200ms' }}>
-          AI agent performance is a complete evaluation of capabilities in categories such as task completion, accuracy, response time, and overall productivity.
+          Create and customize intelligent AI assistants tailored to your needs. Build agents for coding, writing, learning, mentoring, and any role you can imagine.
         </p>
 
         {/* CTA Buttons */}
@@ -22,7 +22,7 @@ export function Hero() {
             size="lg" 
             className="bg-background/50 backdrop-blur-sm border-2 border-primary hover:bg-secondary/50 text-foreground px-8"
           >
-            Join Us Now!!!
+            Get Started
           </Button>
         </div>
 
@@ -32,7 +32,7 @@ export function Hero() {
             to="/create" 
             className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors group"
           >
-            Try our demo of dashboard now! 
+            Create your first agent 
             <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
           </Link>
         </div>

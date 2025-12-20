@@ -6,7 +6,8 @@ interface MessageBubbleProps {
 }
 
 export function MessageBubble({ message }: MessageBubbleProps) {
-  const isUser = message.role === 'user';
+  const isUser = message.role.toUpperCase() === 'USER';
+
 
   return (
     <div className={cn('flex w-full', isUser ? 'justify-end' : 'justify-start')}>

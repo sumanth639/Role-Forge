@@ -7,6 +7,8 @@ import {
   uuid,
   pgEnum,
 } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
+
 
 export const agentModeEnum = pgEnum("agent_mode", [
   "STRICT",
@@ -19,10 +21,12 @@ export const messageRoleEnum = pgEnum("message_role", [
 ]);
 
 export const users = pgTable("users", {
-  id: uuid("id").defaultRandom().primaryKey(),
+   id: uuid("id").defaultRandom().primaryKey(),
 
   email: text("email").notNull().unique(),
   name: text("name"),
+
+  passwordHash: text("password_hash"), 
   avatarUrl: text("avatar_url"),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -66,19 +70,31 @@ export const agents = pgTable("agents", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const chats = pgTable("chats", {
-  id: uuid("id").defaultRandom().primaryKey(),
+import { uniqueIndex } from "drizzle-orm/pg-core";
 
-  userId: uuid("user_id")
-    .references(() => users.id, { onDelete: "cascade" })
-    .notNull(),
+export const chats = pgTable(
+  "chats",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
 
-  agentId: uuid("agent_id")
-    .references(() => agents.id)
-    .notNull(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
 
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+    agentId: uuid("agent_id")
+      .references(() => agents.id)
+      .notNull(),
+
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    userAgentUnique: uniqueIndex("chats_user_agent_unique").on(
+      table.userId,
+      table.agentId
+    ),
+  })
+);
+
 
 export const messages = pgTable("messages", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -110,3 +126,39 @@ export const tokenUsage = pgTable("token_usage", {
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+// =========================
+// RELATIONS
+// =========================
+
+export const usersRelations = relations(users, ({ many }) => ({
+  agents: many(agents),
+  chats: many(chats),
+}));
+
+export const agentsRelations = relations(agents, ({ one, many }) => ({
+  user: one(users, {
+    fields: [agents.userId],
+    references: [users.id],
+  }),
+  chats: many(chats),
+}));
+
+export const chatsRelations = relations(chats, ({ one, many }) => ({
+  user: one(users, {
+    fields: [chats.userId],
+    references: [users.id],
+  }),
+  agent: one(agents, {
+    fields: [chats.agentId],
+    references: [agents.id],
+  }),
+  messages: many(messages),
+}));
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+  chat: one(chats, {
+    fields: [messages.chatId],
+    references: [chats.id],
+  }),
+}));

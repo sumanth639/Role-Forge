@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "chats_user_agent_unique" ON "chats" USING btree ("user_id","agent_id");

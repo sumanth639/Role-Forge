@@ -15,6 +15,34 @@
       "when": 1766165550235,
       "tag": "0001_married_viper",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1766221192730,
+      "tag": "0002_magical_doctor_doom",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1766227449638,
+      "tag": "0003_yellow_pride",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1766230388869,
+      "tag": "0004_lovely_marvel_boy",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1766235344689,
+      "tag": "0005_past_toxin",
+      "breakpoints": true
     }
   ]
 }

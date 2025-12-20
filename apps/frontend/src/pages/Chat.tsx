@@ -1,49 +1,131 @@
-import { useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Navigation } from '@/components/Navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { DynamicIcon } from '@/components/DynamicIcon';
 import { MessageBubble } from '@/components/MessageBubble';
-import { ChatHistoryPanel } from '@/components/ChatHistoryPanel';
-import { agents } from '@/content/agents';
-import { chatSessions } from '@/content/chats';
-import { IconName } from '@/content/icons';
-import { ArrowLeft, Send } from 'lucide-react';
+import { fetchAgents } from "@/api/agents";
+import { fetchMessages } from "@/api/messages";
+import { Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { graphqlRequest } from '@/api/graphql';
+import { TypingIndicator } from '@/components/ui/TypingIndicator';
 
 export default function Chat() {
   const { agentId } = useParams<{ agentId: string }>();
   const navigate = useNavigate();
-  const agent = agents.find((a) => a.id === agentId);
-  const sessions = chatSessions[agentId || ''] || [];
-  const [currentSessionId, setCurrentSessionId] = useState(sessions[0]?.id || '');
-  const [inputValue, setInputValue] = useState('');
 
-  const currentSession = sessions.find((s) => s.id === currentSessionId);
+  const [agent, setAgent] = useState<any>(null);
+  const [chatId, setChatId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [inputValue, setInputValue] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
 
-  const handleSelectAgent = (selectedAgentId: string) => {
-    navigate(`/chat/${selectedAgentId}`);
+  useEffect(() => {
+    if (!agentId) return;
+
+    async function initChat() {
+      setIsLoading(true);
+      try {
+        const agents = await fetchAgents();
+        const found = agents.find(a => a.id === agentId);
+        if (!found) return;
+        setAgent(found);
+
+        const existing = await graphqlRequest<{ chatByAgent: { id: string } | null }>(
+          `query ChatByAgent($agentId: ID!) { chatByAgent(agentId: $agentId) { id } }`,
+          { agentId }
+        );
+
+        let chatIdToUse = existing.chatByAgent?.id;
+
+        if (!chatIdToUse) {
+          const created = await graphqlRequest<{ createChat: { id: string } }>(
+            `mutation CreateChat($agentId: ID!) { createChat(agentId: $agentId) { id } }`,
+            { agentId }
+          );
+          chatIdToUse = created.createChat.id;
+        }
+
+        setChatId(chatIdToUse);
+        const msgs = await fetchMessages(chatIdToUse);
+        setMessages(msgs);
+      } catch (error) {
+        console.error("Failed to load chat", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    initChat();
+  }, [agentId]);
+
+  const handleSendMessage = () => {
+    if (!chatId || !inputValue.trim() || isSending) return;
+
+    const userText = inputValue;
+    const token = localStorage.getItem('token');
+    setInputValue("");
+    setIsSending(true);
+
+    const userMsg = {
+      id: `user-${Date.now()}`,
+      role: "USER",
+      content: userText,
+      timestamp: "Just now",
+    };
+    setMessages((m) => [...m, userMsg]);
+
+    const streamingId = `streaming-${Date.now()}`;
+
+    const eventSource = new EventSource(
+      `http://localhost:4000/stream/chat/${chatId}?message=${encodeURIComponent(userText)}&token=${token}`
+    );
+
+    eventSource.onmessage = (e) => {
+      if (e.data === "end") return;
+
+      setMessages((m) => {
+        const existingAiMsg = m.find((msg) => msg.id === streamingId);
+
+        if (!existingAiMsg) {
+          return [
+            ...m,
+            {
+              id: streamingId,
+              role: "ASSISTANT",
+              content: e.data,
+            },
+          ];
+        }
+
+        return m.map((msg) =>
+          msg.id === streamingId
+            ? { ...msg, content: msg.content + e.data }
+            : msg
+        );
+      });
+    };
+
+    eventSource.addEventListener("done", () => {
+      eventSource.close();
+      setIsSending(false);
+    });
+
+    eventSource.onerror = () => {
+      eventSource.close();
+      setIsSending(false);
+    }
   };
 
-  const colorClasses: Record<string, string> = {
-    lavender: 'bg-lavender/15',
-    mint: 'bg-mint/15',
-    peach: 'bg-peach/15',
-    sky: 'bg-sky/15',
-    rose: 'bg-rose/15',
-    amber: 'bg-amber/15',
-  };
-
-  const iconColorClasses: Record<string, string> = {
-    lavender: 'text-lavender',
-    mint: 'text-mint',
-    peach: 'text-peach',
-    sky: 'text-sky',
-    rose: 'text-rose',
-    amber: 'text-amber',
-  };
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Loading encrypted chat...</div>
+      </div>
+    );
+  }
 
   if (!agent) {
     return (
@@ -57,39 +139,13 @@ export default function Chat() {
     <div className="min-h-screen bg-background flex flex-col">
       <Navigation />
 
-      {/* Chat Header */}
-      <div className="sticky top-20 z-40 backdrop-blur-xl ">
-        <div className="mx-auto max-w-4xl px-6 py-4 ">
-          <div className="flex items-center gap-4 ">
-            <Link
-              to="/"
-              className="text-muted-foreground hover:text-foreground transition-colors p-1.5 hover:bg-secondary rounded-lg"
-            >
-              <ArrowLeft size={18} />
-            </Link>
-            <div className={cn('flex h-10 w-10 items-center justify-center rounded-xl', colorClasses[agent.color])}>
-              <DynamicIcon
-                name={agent.icon as IconName}
-                className={iconColorClasses[agent.color]}
-                size={20}
-              />
-            </div>
-            <div className="flex-1">
-              <h2 className="font-semibold text-foreground">{agent.name}</h2>
-              <p className="text-sm text-muted-foreground line-clamp-1">{agent.description}</p>
-            </div>
-
-          </div>
-        </div>
-      </div>
-
-
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl px-6 py-10">
           <div className="space-y-8"> 
-            {currentSession?.messages.map((message) => (
+            {messages.map((message) => (
               <MessageBubble key={message.id} message={message} />
             ))}
+            {isSending && !messages.find(m => m.id.startsWith('streaming-')) && <TypingIndicator />}
           </div>
           <div className="h-32" />
         </div>
@@ -99,30 +155,24 @@ export default function Chat() {
         <div className="mx-auto max-w-3xl px-6 pb-8">
           <div className="relative flex items-center group">
             <Input
-              placeholder={`Message ${agent.name}...`}
+              placeholder={isSending ? "AI is thinking..." : `Message ${agent.name}...`}
               value={inputValue}
+              disabled={isSending}
               onChange={(e) => setInputValue(e.target.value)}
-              className="pr-12 py-6 rounded-2xl border-border/50 bg-card/50 backdrop-blur-md focus-visible:ring-primary/20 shadow-soft transition-all"
+              onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+              className="pr-12 py-6 rounded-2xl border-border/50 bg-card/50 backdrop-blur-md focus-visible:ring-primary/20 shadow-soft transition-all disabled:opacity-50"
             />
             <Button
               size="icon"
-              className={cn(
-                "absolute right-1.5 h-9 w-9 rounded-xl transition-all",
-                inputValue ? "bg-primary opacity-100" : "bg-muted opacity-50"
-              )}
+              className="absolute right-2"
+              disabled={!inputValue.trim() || isSending}
+              onClick={handleSendMessage}
             >
-              <Send size={16} />
+              <Send size={16} className={cn(isSending && "animate-pulse")} />
             </Button>
           </div>
-
         </div>
       </div>
-
-      <ChatHistoryPanel
-        agents={agents}
-        currentAgentId={agentId || ''}
-        onSelectAgent={handleSelectAgent}
-      />
     </div>
   );
 }
