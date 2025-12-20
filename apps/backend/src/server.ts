@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Express } from "express";
 import cors from "cors";
 import { ApolloServer } from "@apollo/server";
 import { expressMiddleware } from "@apollo/server/express4";
@@ -8,7 +8,7 @@ import { typeDefs } from "./graphql/schema.js";
 import { resolvers } from "./graphql/resolvers.js";
 import { getGoogleUser, getGithubUser, handleOAuthLogin } from "./auth/oauth.js";
 
-export async function createServer() {
+export async function createServer(): Promise<Express> {
   const app = express();
 
   const server = new ApolloServer({

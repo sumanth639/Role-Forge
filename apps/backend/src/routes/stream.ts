@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Router } from "express";
 import { db } from "../db/client.js";
 import { chats, agents, messages, tokenUsage } from "../db/schema.js";
 import { eq, and } from "drizzle-orm";
@@ -8,7 +8,7 @@ import { verifyJwt } from "../auth/jwt.js";
 import { checkRateLimit } from "../limits/rates.js";
 import { estimateTokens } from "../limits/usage.js";
 
-export const streamRouter = express.Router();
+export const streamRouter: Router = express.Router();
 
 streamRouter.get("/chat/:chatId", async (req, res) => {
   try {
