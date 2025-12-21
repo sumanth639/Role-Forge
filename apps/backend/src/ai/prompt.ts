@@ -1,4 +1,3 @@
-// src/ai/prompt.ts
 
 export type AgentMode = "STRICT" | "FLEXIBLE";
 
