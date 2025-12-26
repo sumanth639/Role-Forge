@@ -196,3 +196,63 @@
     text-wrap: balance;
   }
 }
+
+
+/* Neon floating cards */
+.neon-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 1rem;
+  background: hsl(var(--card) / 0.8);
+  border: 1px solid hsl(var(--border) / 0.4);
+  box-shadow: 0 0 25px hsl(var(--primary) / 0.35);
+  font-size: 0.875rem;
+  backdrop-filter: blur(16px);
+}
+
+.neon-chip.lavender {
+  box-shadow: 0 0 25px hsl(var(--lavender) / 0.45);
+}
+
+.neon-chip.peach {
+  box-shadow: 0 0 25px hsl(var(--peach) / 0.45);
+}
+
+.neon-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.neon-float.delay-1 {
+  animation-delay: 1s;
+}
+.neon-float.delay-2 {
+  animation-delay: 2s;
+}
+
+/* Glow behind card */
+.neon-glow {
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(
+    circle,
+    hsl(var(--primary) / 0.35),
+    transparent 70%
+  );
+  filter: blur(80px);
+}
+
+/* Inputs */
+.input-neon {
+  height: 3rem;
+  padding: 0 1.25rem;
+  border-radius: 1.5rem;
+  background: hsl(var(--muted) / 0.35);
+  border: none;
+}
+.input-neon:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.25);
+}
+
