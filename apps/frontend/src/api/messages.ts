@@ -2,7 +2,7 @@ import { graphqlRequest } from "./graphql";
 
 export type Message = {
   id: string;
-  role: "USER" | "ASSISTANT";
+  role: "USER" | "model";
   content: string;
   createdAt: string;
 };
@@ -45,6 +45,19 @@ export async function sendMessage(
   );
 
   return data.sendMessage;
+}
+
+export async function clearMessages(chatId: string): Promise<boolean> {
+  const data = await graphqlRequest<{ clearMessages: boolean }>(
+    `
+    mutation ClearMessages($chatId: ID!) {
+      clearMessages(chatId: $chatId)
+    }
+    `,
+    { chatId }
+  );
+
+  return data.clearMessages;
 }
 
 

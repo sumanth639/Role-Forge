@@ -1,102 +1,97 @@
-import { useState, useEffect } from 'react';
-import { graphqlRequest } from '@/api/graphql';
+import { useEffect, useState } from "react";
+import { graphqlRequest } from "@/api/graphql";
 import { fetchMessages } from "@/api/messages";
+import { fixMarkdownFinal } from "@/lib/markdown-utils";
 
-export function useChatStream(agentId: string | undefined, chatId: string | null, setChatId: (id: string | null) => void, setMessages: React.Dispatch<React.SetStateAction<any[]>>) {
+export function useChatStream(
+  agentId: string | undefined,
+  chatId: string | null,
+  setChatId: (id: string | null) => void,
+  setMessages: React.Dispatch<React.SetStateAction<any[]>>
+) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!agentId) return;
 
     async function initChat() {
-      // Only show full page loading if we don't have messages yet
-      if (setMessages.length === 0) setIsLoading(true);
+      setIsLoading(true);
 
-      try {
-        // Get or Create Chat ID via GraphQL
-        const existing = await graphqlRequest<{ chatByAgent: { id: string } | null }>(
-          `query ChatByAgent($agentId: ID!) { chatByAgent(agentId: $agentId) { id } }`,
+      const existing = await graphqlRequest<{ chatByAgent: { id: string } | null }>(
+        `query ChatByAgent($agentId: ID!) {
+          chatByAgent(agentId: $agentId) { id }
+        }`,
+        { agentId }
+      );
+
+      let id = existing.chatByAgent?.id;
+      if (!id) {
+        const created = await graphqlRequest<{ createChat: { id: string } }>(
+          `mutation CreateChat($agentId: ID!) {
+            createChat(agentId: $agentId) { id }
+          }`,
           { agentId }
         );
-
-        let chatIdToUse = existing.chatByAgent?.id;
-
-        if (!chatIdToUse) {
-          const created = await graphqlRequest<{ createChat: { id: string } }>(
-            `mutation CreateChat($agentId: ID!) { createChat(agentId: $agentId) { id } }`,
-            { agentId }
-          );
-          chatIdToUse = created.createChat.id;
-        }
-
-        setChatId(chatIdToUse);
-
-        // Fetch historical messages
-        const msgs = await fetchMessages(chatIdToUse);
-        setMessages(msgs);
-      } catch (error) {
-        console.error("Failed to load chat", error);
-      } finally {
-        setIsLoading(false);
+        id = created.createChat.id;
       }
+
+      setChatId(id);
+      setMessages(await fetchMessages(id));
+      setIsLoading(false);
     }
 
     initChat();
   }, [agentId]);
 
-  const sendMessage = (userText: string, setIsSending: (sending: boolean) => void) => {
-    if (!chatId || !userText.trim()) return;
+  const sendMessage = (text: string, setIsSending: (v: boolean) => void) => {
+    if (!chatId) return;
 
-    const token = localStorage.getItem('token');
     setIsSending(true);
 
-    const userMsg = {
-      id: `user-${Date.now()}`,
-      role: "USER",
-      content: userText,
-      timestamp: "Just now",
-    };
-    setMessages((m) => [...m, userMsg]);
+    const streamId = `streaming-${Date.now()}`;
 
-    const streamingId = `streaming-${Date.now()}`;
-    const backendURL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+    setMessages(prev => [
+      ...prev,
+      { id: `user-${Date.now()}`, role: "USER", content: text },
+      { id: streamId, role: "model", content: "" },
+    ]);
 
-    const eventSource = new EventSource(
-      `${backendURL}/stream/chat/${chatId}?message=${encodeURIComponent(userText)}&token=${token}`
-    );
+    const token = localStorage.getItem('token');
+    const url = `${import.meta.env.VITE_API_URL}/stream/chat/${chatId}?message=${encodeURIComponent(text)}${token ? `&token=${encodeURIComponent(token)}` : ''}`;
+    const es = new EventSource(url);
 
-    eventSource.onmessage = (e) => {
-      if (e.data === "end") return;
+    es.onmessage = e => {
+      const token = JSON.parse(e.data); // 🔓 restore original text
 
-      setMessages((m) => {
-        const existingAiMsg = m.find((msg) => msg.id === streamingId);
-
-        if (!existingAiMsg) {
-          return [
-            ...m,
-            {
-              id: streamingId,
-              role: "ASSISTANT",
-              content: e.data,
-            },
-          ];
-        }
-
-        return m.map((msg) =>
-          msg.id === streamingId
-            ? { ...msg, content: msg.content + e.data }
-            : msg
-        );
-      });
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === streamId
+            ? { ...m, content: m.content + token }
+            : m
+        )
+      );
     };
 
-    eventSource.addEventListener("done", () => {
-      eventSource.close();
-      setIsSending(false);
+    es.addEventListener("done", () => {
+      es.close();
+      finalize();
     });
 
-    eventSource.onerror = () => {
-      eventSource.close();
+    const finalize = () => {
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === streamId
+            ? { ...m, id: `assistant-${Date.now()}`, content: fixMarkdownFinal(m.content) }
+            : m
+        )
+      );
+
+      setIsSending(false);
+    };
+
+    es.onerror = () => {
+      es.close();
+      setMessages(prev => prev.filter(m => m.id !== streamId));
       setIsSending(false);
     };
   };

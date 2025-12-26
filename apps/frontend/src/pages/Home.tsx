@@ -52,7 +52,7 @@ const Index = () => {
 
       <Navigation />
       
-      <main className="relative mx-auto max-w-6xl px-6 py-8 mt-16" style={{ zIndex: 1 }}>
+      <main className="relative mx-auto max-w-7xl px-6 py-8 mt-16" style={{ zIndex: 1 }}>
         <Hero />
         <AgentsSection />
       </main>

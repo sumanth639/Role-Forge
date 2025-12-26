@@ -96,13 +96,13 @@ streamRouter.get("/chat/:chatId", async (req, res) => {
       })),
       onToken(token) {
         finalAnswer += token;
-        res.write(`data: ${token}\n\n`);
+        res.write(`data: ${JSON.stringify(token)}\n\n`);
       },
     });
 
     await db.insert(messages).values({
       chatId,
-      role: "ASSISTANT",
+      role: "model",
       content: finalAnswer,
     });
 

@@ -66,7 +66,7 @@ export const typeDefs = gql`
 
 enum MessageRole {
   USER
-  ASSISTANT
+  model
 }
 
 extend type Query {
@@ -75,6 +75,7 @@ extend type Query {
 
 extend type Mutation {
   sendMessage(chatId: ID!, content: String!): [Message!]!
+  clearMessages(chatId: ID!): Boolean!
 }
 
 extend type Query {

@@ -425,12 +425,12 @@ createChat: async (_: any, { agentId }: { agentId: string }, ctx: any) => {
 
       // 7️⃣ Call Gemini
       const aiResponse = await runGemini({
-  systemPrompt: finalSystemPrompt,
-  messages: history.map((m) => ({
-    role: m.role === "USER" ? "user" : "assistant",
-    content: m.content,
-  })),
-});
+      systemPrompt: finalSystemPrompt,
+      messages: history.map((m) => ({
+        role: m.role === "USER" ? "user" : "model",
+        content: m.content,
+      })),
+    });
 
 
       // 8️⃣ Track token usage AFTER Gemini response
@@ -448,7 +448,7 @@ const [assistantMessage] = await db
   .insert(messages)
   .values({
     chatId,
-    role: "ASSISTANT",
+    role: "model",
     content: aiResponse,
   })
   .returning();
@@ -463,6 +463,33 @@ return [
   },
   assistantMessage,]
 
+    },
+
+    clearMessages: async (_: any, { chatId }: { chatId: string }, ctx: any) => {
+      if (!ctx.user) throw new Error("Unauthorized");
+
+      // Verify the chat belongs to the user
+      const [chat] = await db
+        .select()
+        .from(chats)
+        .where(
+          and(
+            eq(chats.id, chatId),
+            eq(chats.userId, ctx.user.id)
+          )
+        )
+        .limit(1);
+
+      if (!chat) {
+        throw new Error("Chat not found");
+      }
+
+      // Delete all messages for this chat
+      await db
+        .delete(messages)
+        .where(eq(messages.chatId, chatId));
+
+      return true;
     },
 
     // --------------------

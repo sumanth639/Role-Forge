@@ -17,7 +17,7 @@ export const agentModeEnum = pgEnum("agent_mode", [
 
 export const messageRoleEnum = pgEnum("message_role", [
   "USER",
-  "ASSISTANT",
+  "model",
 ]);
 
 export const users = pgTable("users", {

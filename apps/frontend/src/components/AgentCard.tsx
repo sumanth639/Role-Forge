@@ -5,9 +5,10 @@ import { DynamicIcon } from '@/components/DynamicIcon';
 import { Agent } from '@/content/agents';
 import { IconName } from '@/content/icons';
 import { useNavigate } from 'react-router-dom';
-import { ArrowUpRight, Trash2, Plus, MoreVertical, Edit } from 'lucide-react';
+import { ArrowUpRight, Trash2, Plus, MoreVertical, Edit, MessageSquareOff } from 'lucide-react';
 import { createChat } from "@/api/chats";
 import { createAgent } from "@/api/agents";
+import { clearMessages } from "@/api/messages";
 import { useState } from "react";
 import { toast } from "sonner";
 import { cn, buildSystemPrompt, colorClasses, iconColorClasses } from '@/lib/utils';
@@ -43,6 +44,7 @@ export function AgentCard({ agent, onDelete, onEdit, variant = 'list' }: AgentCa
   
   const [isAdding, setIsAdding] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showClearDialog, setShowClearDialog] = useState(false);
   
   const isHomePage = variant === 'home';
 
@@ -114,6 +116,32 @@ async function handleAddAgent(e: React.MouseEvent) {
     setShowDeleteDialog(false);
   };
 
+  const handleClearChat = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowClearDialog(false);
+
+    try {
+      // Get the chat for this agent
+      const existing = await graphqlRequest<{ chatByAgent: { id: string } | null }>(
+        `query ChatByAgent($agentId: ID!) { 
+          chatByAgent(agentId: $agentId) { id } 
+        }`,
+        { agentId: agent.id }
+      );
+
+      if (!existing.chatByAgent) {
+        toast.error("No chat history found for this agent");
+        return;
+      }
+
+      await clearMessages(existing.chatByAgent.id);
+      toast.success("Chat history cleared successfully");
+    } catch (err) {
+      console.error("Clear chat error:", err);
+      toast.error("Failed to clear chat history");
+    }
+  };
+
   return (
     <>
       <Card
@@ -157,6 +185,15 @@ async function handleAddAgent(e: React.MouseEvent) {
                   Edit
                 </DropdownMenuItem>
               )}
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault();
+                  setShowClearDialog(true);
+                }}
+              >
+                <MessageSquareOff className="mr-2 h-4 w-4" />
+                Clear Chat
+              </DropdownMenuItem>
               {onDelete && (
                 <DropdownMenuItem
                   onSelect={(e) => {
@@ -206,12 +243,34 @@ async function handleAddAgent(e: React.MouseEvent) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={(e) => e.stopPropagation()} className="h-9 px-4 rounded-lg">Cancel</AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleConfirmDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 h-9 px-4 rounded-lg"
             >
               Delete Agent
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showClearDialog} onOpenChange={setShowClearDialog}>
+        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear Chat History?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to clear all chat history for <span className="font-semibold text-foreground">"{agent.name}"</span>? 
+              This will remove all messages but keep the chat itself. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={(e) => e.stopPropagation()} className="h-9 px-4 rounded-lg">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleClearChat}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 h-9 px-4 rounded-lg"
+            >
+              Clear Chat
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

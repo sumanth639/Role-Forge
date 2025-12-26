@@ -14,14 +14,14 @@ export async function runGemini({
   messages,
 }: {
   systemPrompt: string;
-  messages: { role: "user" | "assistant"; content: string }[];
+  messages: { role: "user" | "model"; content: string }[];
 }) {
   if (messages.length === 0) {
     throw new Error("No messages provided to Gemini");
   }
 
   const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash-lite",
+    model: "gemini-2.5-flash",
     systemInstruction: systemPrompt,
   });
 

@@ -28,7 +28,9 @@ export const colorClasses: Record<string, string> = {
   sky: 'bg-sky/15',
   rose: 'bg-rose/15',
   amber: 'bg-amber/15',
+  sage: 'bg-sage/15',
 };
+
 
 export const iconColorClasses: Record<string, string> = {
   lavender: 'text-lavender',
@@ -37,4 +39,6 @@ export const iconColorClasses: Record<string, string> = {
   sky: 'text-sky',
   rose: 'text-rose',
   amber: 'text-amber',
+  sage: 'text-sage',
 };
+

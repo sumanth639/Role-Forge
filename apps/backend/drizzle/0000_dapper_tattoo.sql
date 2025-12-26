@@ -1,5 +1,5 @@
 CREATE TYPE "public"."agent_mode" AS ENUM('STRICT', 'FLEXIBLE');--> statement-breakpoint
-CREATE TYPE "public"."message_role" AS ENUM('USER', 'ASSISTANT');--> statement-breakpoint
+CREATE TYPE "public"."message_role" AS ENUM('USER', 'model');--> statement-breakpoint
 CREATE TABLE "accounts" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,

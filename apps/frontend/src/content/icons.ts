@@ -19,6 +19,9 @@ export const availableIcons = [
   'Palette',
   'Globe',
   'Coffee',
+  'Bug',        
+  'Layers',     
 ] as const;
+
 
 export type IconName = typeof availableIcons[number];

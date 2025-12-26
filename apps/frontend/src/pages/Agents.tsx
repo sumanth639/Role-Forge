@@ -5,10 +5,9 @@ import { useState } from "react";
 import { deleteAgent, fetchAgent } from "@/api/agents";
 import { Agent } from "@/content/agents";
 import { toast } from "sonner";
-import { useAgents } from "@/contexts/AgentContext"; // Custom Hook from Step 1
+import { useAgents } from "@/contexts/AgentContext"; 
 
 const Agents = () => {
-  // 1. Consume the Global Agent State
   const { agents, loading, refreshAgents } = useAgents();
 
   // 2. Local UI state for the Edit Dialog

@@ -1,30 +1,41 @@
-import { ChatMessage } from '@/content/chats';
-import { cn } from '@/lib/utils';
+import { cn } from "@/lib/utils";
+import { MarkdownRenderer } from "./MarkdownRenderer";
+import { fixMarkdownFinal } from "@/lib/markdown-utils";
 
-interface MessageBubbleProps {
+type ChatMessage = {
+  id: string;
+  role: "USER" | "model";
+  content: string;
+};
+
+export function MessageBubble({
+  message,
+  isStreaming,
+}: {
   message: ChatMessage;
-}
-
-export function MessageBubble({ message }: MessageBubbleProps) {
-  const isUser = message.role.toUpperCase() === 'USER';
-
+  isStreaming?: boolean;
+}) {
+  const isUser = message.role === "USER";
 
   return (
-    <div className={cn('flex w-full', isUser ? 'justify-end' : 'justify-start')}>
-      <div className={cn('max-w-[75%]', isUser ? 'items-end' : 'items-start')}>
+    <div className={cn("flex w-full", isUser ? "justify-end" : "justify-start")}>
+      <div className={cn(isUser ? "max-w-[80%]" : "w-full min-w-0")}>
         <div
           className={cn(
-            'rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-soft',
+            "rounded-2xl px-4 py-3",
             isUser
-              ? 'bg-primary text-primary-foreground rounded-br-lg'
-              : 'bg-card border border-border/60 text-card-foreground rounded-bl-lg'
+              ? "bg-card border border-border/60"
+              : "bg-transparent"
           )}
         >
-          {message.content}
+          {isUser ? (
+            <div>{message.content}</div>
+          ) : isStreaming ? (
+            <MarkdownRenderer content={message.content} isStreaming />
+          ) : (
+            <MarkdownRenderer content={fixMarkdownFinal(message.content)} />
+          )}
         </div>
-        <span className="mt-1.5 block text-xs text-muted-foreground px-1">
-          {message.timestamp}
-        </span>
       </div>
     </div>
   );

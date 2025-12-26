@@ -173,7 +173,17 @@
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--muted-foreground) / 0.2) transparent;
   }
+
+  .message-user {
+    @apply bg-card border border-border/50 text-card-foreground rounded-2xl rounded-tr-none shadow-soft px-4 py-3 max-w-[85%];
+  }
+  
+  .message-agent {
+    @apply bg-transparent text-foreground px-0 py-3 max-w-full;
+  }
 }
+
+
 
 @layer utilities {
   .shadow-soft {
@@ -198,7 +208,7 @@
 }
 
 
-/* Neon floating cards */
+/* Signup Cards */
 .neon-chip {
   display: flex;
   align-items: center;
@@ -255,4 +265,7 @@
   outline: none;
   box-shadow: 0 0 0 3px hsl(var(--primary) / 0.25);
 }
+
+
+
 
