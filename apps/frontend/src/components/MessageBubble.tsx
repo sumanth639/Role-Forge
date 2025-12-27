@@ -17,6 +17,11 @@ export function MessageBubble({
 }) {
   const isUser = message.role === "USER";
 
+  // SAFETY: Don't render an empty bubble if content is missing
+  if (!isUser && !message.content?.trim() && isStreaming) {
+    return null;
+  }
+
   return (
     <div className={cn("flex w-full", isUser ? "justify-end" : "justify-start")}>
       <div className={cn(isUser ? "max-w-[80%]" : "w-full min-w-0")}>
@@ -29,7 +34,7 @@ export function MessageBubble({
           )}
         >
           {isUser ? (
-            <div>{message.content}</div>
+            <div className="whitespace-pre-wrap">{message.content}</div>
           ) : isStreaming ? (
             <MarkdownRenderer content={message.content} isStreaming />
           ) : (

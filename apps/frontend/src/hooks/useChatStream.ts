@@ -13,33 +13,25 @@ export function useChatStream(
 
   useEffect(() => {
     if (!agentId) return;
-
     async function initChat() {
       setIsLoading(true);
-
       const existing = await graphqlRequest<{ chatByAgent: { id: string } | null }>(
-        `query ChatByAgent($agentId: ID!) {
-          chatByAgent(agentId: $agentId) { id }
-        }`,
+        `query ChatByAgent($agentId: ID!) { chatByAgent(agentId: $agentId) { id } }`,
         { agentId }
       );
 
       let id = existing.chatByAgent?.id;
       if (!id) {
         const created = await graphqlRequest<{ createChat: { id: string } }>(
-          `mutation CreateChat($agentId: ID!) {
-            createChat(agentId: $agentId) { id }
-          }`,
+          `mutation CreateChat($agentId: ID!) { createChat(agentId: $agentId) { id } }`,
           { agentId }
         );
         id = created.createChat.id;
       }
-
       setChatId(id);
       setMessages(await fetchMessages(id));
       setIsLoading(false);
     }
-
     initChat();
   }, [agentId]);
 
@@ -47,29 +39,37 @@ export function useChatStream(
     if (!chatId) return;
 
     setIsSending(true);
-
     const streamId = `streaming-${Date.now()}`;
 
+    // 1. Add ONLY the user message first
     setMessages(prev => [
       ...prev,
       { id: `user-${Date.now()}`, role: "USER", content: text },
-      { id: streamId, role: "model", content: "" },
     ]);
 
     const token = localStorage.getItem('token');
     const url = `${import.meta.env.VITE_API_URL}/stream/chat/${chatId}?message=${encodeURIComponent(text)}${token ? `&token=${encodeURIComponent(token)}` : ''}`;
     const es = new EventSource(url);
 
-    es.onmessage = e => {
-      const token = JSON.parse(e.data); // 🔓 restore original text
+    let hasStarted = false;
 
-      setMessages(prev =>
-        prev.map(m =>
-          m.id === streamId
-            ? { ...m, content: m.content + token }
-            : m
-        )
-      );
+    es.onmessage = e => {
+      const chunk = JSON.parse(e.data);
+
+      setMessages(prev => {
+        // 2. On the first chunk, inject the model message bubble
+        if (!hasStarted) {
+          hasStarted = true;
+          return [
+            ...prev,
+            { id: streamId, role: "model", content: chunk }
+          ];
+        }
+        // 3. Subsequent chunks append normally
+        return prev.map(m =>
+          m.id === streamId ? { ...m, content: m.content + chunk } : m
+        );
+      });
     };
 
     es.addEventListener("done", () => {
@@ -85,13 +85,12 @@ export function useChatStream(
             : m
         )
       );
-
       setIsSending(false);
     };
 
     es.onerror = () => {
       es.close();
-      setMessages(prev => prev.filter(m => m.id !== streamId));
+      setMessages(prev => prev.filter(m => !m.id.toString().startsWith("streaming-")));
       setIsSending(false);
     };
   };
