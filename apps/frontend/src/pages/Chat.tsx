@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 export default function Chat() {
   const { agentId } = useParams<{ agentId: string }>();
   const { agents } = useAgents();
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -26,21 +27,16 @@ export default function Chat() {
   const { sendMessage } = useChatStream(agentId, chatId, setChatId, setMessages);
 
   const scrollToBottom = () => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({
-        top: scrollRef.current.scrollHeight,
-        behavior: 'smooth'
-      });
-    }
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: 'smooth',
+    });
   };
 
   const handleScroll = () => {
-    if (scrollRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-      // Show button if user is more than 300px away from the bottom
-      const isNearBottom = scrollHeight - scrollTop - clientHeight < 300;
-      setShowScrollButton(!isNearBottom);
-    }
+    if (!scrollRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+    setShowScrollButton(scrollHeight - scrollTop - clientHeight > 300);
   };
 
   useEffect(() => {
@@ -59,19 +55,13 @@ export default function Chat() {
     if (!inputValue.trim() || isSending) return;
     const text = inputValue;
     setInputValue("");
-    if (textareaRef.current) textareaRef.current.style.height = 'auto';
+    textareaRef.current && (textareaRef.current.style.height = 'auto');
     sendMessage(text, setIsSending);
   };
 
-  useEffect(() => {
-  console.log("CHAT MESSAGES UPDATED:");
-  console.log(messages);
-}, [messages]);
-
-
   if (!agent) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background font-sans">
+      <div className="min-h-screen flex items-center justify-center bg-background overflow-x-hidden">
         <div className="rounded-md bg-[#0d1117] px-4 py-2 font-mono text-[13px] text-foreground border border-border/40">
           <span className="text-primary mr-2">{'>'}</span> Getting Agent...
         </div>
@@ -79,25 +69,27 @@ export default function Chat() {
     );
   }
 
-  const showTypingIndicator = isSending && !messages.some(m => m.id.toString().startsWith("streaming-"));
+  const showTypingIndicator =
+    isSending && !messages.some(m => m.id.toString().startsWith("streaming-"));
 
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden font-sans">
+    <div className="h-screen bg-background flex flex-col font-sans overflow-hidden overflow-x-hidden">
       <Navigation />
-      
-      <div 
-        ref={scrollRef} 
+
+      <div
+        ref={scrollRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto scroll-smooth pb-32"
+        className="flex-1 overflow-y-auto scroll-smooth pb-32 overflow-x-hidden"
       >
-        <div className="mx-auto max-w-[54rem] md:px-6 py-10 space-y-10">
+        <div className="mx-auto max-w-[54rem] px-4 md:px-6 py-10 space-y-10">
           {messages.map(msg => (
-            <MessageBubble 
-              key={msg.id} 
-              message={msg} 
-              isStreaming={msg.id.toString().startsWith("streaming-")} 
+            <MessageBubble
+              key={msg.id}
+              message={msg}
+              isStreaming={msg.id.toString().startsWith("streaming-")}
             />
           ))}
+
           {showTypingIndicator && (
             <div className="flex justify-start pl-2">
               <TypingIndicator />
@@ -106,24 +98,29 @@ export default function Chat() {
         </div>
       </div>
 
-      {/* Floating Scroll to Bottom Arrow */}
-      <div className={cn(
-        "fixed bottom-36 left-1/2 -translate-x-1/2 transition-all duration-300 z-50",
-        showScrollButton ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-4 scale-90 pointer-events-none"
-      )}>
+      {/* Scroll to bottom */}
+      <div
+        className={cn(
+          "fixed bottom-36 left-1/2 -translate-x-1/2 transition-all duration-300 z-50",
+          showScrollButton
+            ? "opacity-100 scale-100"
+            : "opacity-0 scale-90 pointer-events-none"
+        )}
+      >
         <Button
           variant="secondary"
           size="icon"
           onClick={scrollToBottom}
-          className="rounded-full shadow-float bg-card/90 backdrop-blur-md border border-border/50 hover:bg-card w-10 h-10 hover:scale-110 active:scale-95 transition-all"
+          className="rounded-full bg-card/90 backdrop-blur-md border border-border/50 w-10 h-10"
         >
           <ArrowDown size={18} className="text-primary animate-bounce-slow" />
         </Button>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background/95 to-transparent p-4 pb-[env(safe-area-inset-bottom)]">
-        <div className="mx-auto max-w-[50rem] relative">
-          <div className="relative flex items-end gap-2 bg-card/80 backdrop-blur-2xl border border-border/60 rounded-[1.5rem] p-1.5 shadow-card hover:shadow-elevated transition-all duration-300">
+      {/* Input */}
+      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background/95 to-transparent p-4">
+        <div className="mx-auto max-w-[50rem]">
+          <div className="flex items-end gap-2 bg-card/80 backdrop-blur-2xl border border-border/60 rounded-[1.5rem] p-1.5">
             <Textarea
               ref={textareaRef}
               placeholder={`Message ${agent?.name || 'Agent'}...`}
@@ -140,20 +137,17 @@ export default function Chat() {
                   handleSendMessage();
                 }
               }}
-              className="min-h-[44px] max-h-44 resize-none rounded-[1.2rem] bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 py-2.5 px-4 text-[15px] leading-snug placeholder:text-muted-foreground/50 overflow-y-auto"
+              className="min-h-[44px] resize-none bg-transparent border-none focus-visible:ring-0 px-4 py-2.5 overflow-y-auto"
               rows={1}
             />
-            <Button 
-              size="icon" 
-              className="h-9 w-9 rounded-full mb-0.5 mr-0.5 flex-shrink-0 shadow-float hover:scale-105 active:scale-95 transition-all bg-primary hover:bg-primary/90" 
+            <Button
+              size="icon"
               disabled={!inputValue.trim() || isSending}
               onClick={handleSendMessage}
+              className="h-9 w-9 rounded-full bg-primary"
             >
-              <Send size={16} className={isSending ? "animate-pulse" : ""} />
+              <Send size={16} />
             </Button>
-          </div>
-          <div className="text-[10px] text-muted-foreground text-center mt-2 tracking-tight">
-            AI-generated content may be inaccurate
           </div>
         </div>
       </div>

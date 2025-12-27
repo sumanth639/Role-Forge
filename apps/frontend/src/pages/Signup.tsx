@@ -51,7 +51,6 @@ export default function Signup() {
   return (
     <div className="relative min-h-screen overflow-hidden flex items-center justify-center px-4">
 
-      {/* 🔙 Back to Home */}
       <Link
         to="/"
         className="
@@ -66,7 +65,6 @@ export default function Signup() {
         Back to home
       </Link>
 
-      {/* 🌌 Ambient Neon Background — Desktop Only */}
       <div className="hidden lg:block absolute inset-0 pointer-events-none">
         <div className="absolute top-[15%] left-[12%] neon-float">
           <div className="neon-chip">
@@ -94,7 +92,6 @@ export default function Signup() {
         </div>
       </div>
 
-      {/* 🧾 Signup Card */}
       <div className="relative z-10 w-full max-w-[420px] mt-12 lg:mt-0">
         <Card
           className="
