@@ -11,21 +11,21 @@ interface AgentContextType {
 
 const AgentContext = createContext<AgentContextType | undefined>(undefined);
 
+const AGENTS_CACHE_KEY = 'agents_cache';
+
 export function AgentProvider({ children }: { children: ReactNode }) {
   const [agents, setAgents] = useState<Agent[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const refreshAgents = async () => {
-    // We only set loading to true if we don't have agents yet 
-    // This prevents the "flicker" when updating or returning to the page
-    if (agents.length === 0) setLoading(true); 
-    
+    setLoading(true);
     try {
       const apiAgents = await fetchAgents();
       const uiAgents = apiAgents.map(mapApiAgentToUi);
       setAgents(uiAgents);
+      localStorage.setItem(AGENTS_CACHE_KEY, JSON.stringify(uiAgents));
     } catch (error) {
-      console.error("Failed to load agents into context:", error);
+      console.error("Failed to load agents:", error);
     } finally {
       setLoading(false);
     }
@@ -34,6 +34,17 @@ export function AgentProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
+      // Load from cache first
+      const cached = localStorage.getItem(AGENTS_CACHE_KEY);
+      if (cached) {
+        try {
+          const cachedAgents = JSON.parse(cached);
+          setAgents(cachedAgents);
+        } catch (e) {
+          console.error('Failed to parse cached agents:', e);
+        }
+      }
+      // Then refresh from server
       refreshAgents();
     }
   }, []);

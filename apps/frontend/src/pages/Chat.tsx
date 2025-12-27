@@ -6,18 +6,19 @@ import { Textarea } from '@/components/ui/textarea';
 import { MessageBubble } from '@/components/MessageBubble';
 import { TypingIndicator } from '@/components/ui/TypingIndicator';
 import { Send, ArrowDown } from 'lucide-react';
-import { useAgents } from "@/contexts/AgentContext";
 import { useChatStream } from '@/hooks/useChatStream';
 import { cn } from '@/lib/utils';
+import { fetchAgent } from '@/api/agents';
+import { mapApiAgentToUi } from '@/mappers/agentMapper';
+import { Agent } from '@/content/agents';
 
 export default function Chat() {
   const { agentId } = useParams<{ agentId: string }>();
-  const { agents } = useAgents();
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const [agent, setAgent] = useState<any>(null);
+  const [agent, setAgent] = useState<Agent | null>(null);
   const [chatId, setChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -74,10 +75,14 @@ export default function Chat() {
   }, [messages, isSending]);
 
   useEffect(() => {
-    if (!agentId || agents.length === 0) return;
-    const found = agents.find(a => a.id === agentId);
-    if (found) setAgent(found);
-  }, [agentId, agents]);
+    if (!agentId) return;
+    fetchAgent(agentId)
+      .then(apiAgent => setAgent(mapApiAgentToUi(apiAgent)))
+      .catch(err => {
+        console.error('Failed to fetch agent:', err);
+        setAgent(null);
+      });
+  }, [agentId]);
 
   const handleSendMessage = () => {
     if (!inputValue.trim() || isSending) return;
