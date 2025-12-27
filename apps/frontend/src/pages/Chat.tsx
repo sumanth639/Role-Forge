@@ -6,27 +6,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { MessageBubble } from '@/components/MessageBubble';
 import { TypingIndicator } from '@/components/ui/TypingIndicator';
 import { Send, ArrowDown } from 'lucide-react';
-import { useChatStream } from '@/hooks/useChatStream';
 import { cn } from '@/lib/utils';
-import { fetchAgent } from '@/api/agents';
-import { mapApiAgentToUi } from '@/mappers/agentMapper';
-import { Agent } from '@/content/agents';
+import { ChatProvider, useChat } from '@/contexts/ChatContext';
 
-export default function Chat() {
-  const { agentId } = useParams<{ agentId: string }>();
-
+function ChatContent() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const [agent, setAgent] = useState<Agent | null>(null);
-  const [chatId, setChatId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<any[]>([]);
-  const [inputValue, setInputValue] = useState("");
-  const [isSending, setIsSending] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
-  const { sendMessage } = useChatStream(agentId, chatId, setChatId, setMessages);
+  const { agent, messages, inputValue, setInputValue, isSending, sendMessage } = useChat();
 
   const scrollToBottom = () => {
     if (scrollRef.current) {
@@ -74,22 +64,12 @@ export default function Chat() {
     }
   }, [messages, isSending]);
 
-  useEffect(() => {
-    if (!agentId) return;
-    fetchAgent(agentId)
-      .then(apiAgent => setAgent(mapApiAgentToUi(apiAgent)))
-      .catch(err => {
-        console.error('Failed to fetch agent:', err);
-        setAgent(null);
-      });
-  }, [agentId]);
-
   const handleSendMessage = () => {
     if (!inputValue.trim() || isSending) return;
     const text = inputValue;
     setInputValue("");
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
-    sendMessage(text, setIsSending);
+    sendMessage(text);
   };
 
   if (!agent) {
@@ -189,5 +169,15 @@ export default function Chat() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Chat() {
+  const { agentId } = useParams<{ agentId: string }>();
+
+  return (
+    <ChatProvider agentId={agentId}>
+      <ChatContent />
+    </ChatProvider>
   );
 }
