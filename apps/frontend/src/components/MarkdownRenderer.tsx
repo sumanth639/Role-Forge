@@ -16,7 +16,7 @@ function CodeComponent({ inline, className, children }: any) {
 
   if (inline || !lang) {
     return (
-      <code className="rounded-md bg-[#282a2a]  font-mono text-[13px] font-medium text-foreground">
+      <code className="rounded-md bg-[#282a2a] p-[3px]  font-mono text-[13px] font-medium text-foreground">
         {children}
       </code>
     );
@@ -40,14 +40,14 @@ function CodeComponent({ inline, className, children }: any) {
 
   return (
     <div className="relative group my-6">
-      <pre className="rounded-xl border border-border/50 bg-[#0d1117]  overflow-x-auto text-[13.5px] leading-relaxed whitespace-pre">
+      <pre className="rounded-[9px] border px-3 border-border/50 bg-[#0d1117]  overflow-x-auto text-[13.5px] leading-relaxed whitespace-pre">
         {highlighted ? (
           <code
             className={`hljs language-${lang}`}
             dangerouslySetInnerHTML={{ __html: highlighted }}
           />
         ) : (
-          <code className="text-slate-100 bg-[#0d1117]">{raw}</code>
+          <code className="text-slate-100  bg-[#0d1117]">{raw}</code>
         )}
       </pre>
 

@@ -23,15 +23,43 @@ export default function Chat() {
   const [inputValue, setInputValue] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const { sendMessage } = useChatStream(agentId, chatId, setChatId, setMessages);
 
   const scrollToBottom = () => {
-    scrollRef.current?.scrollTo({
-      top: scrollRef.current.scrollHeight,
-      behavior: 'smooth',
-    });
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
+    }
   };
+
+  // 1. Handle Visual Viewport (Keyboard) Logic
+  useEffect(() => {
+    if (!window.visualViewport) return;
+
+    const handleVisualUpdate = () => {
+      const vv = window.visualViewport;
+      if (!vv) return;
+
+      const offset = window.innerHeight - vv.height;
+      setKeyboardHeight(offset > 0 ? offset : 0);
+
+      if (offset > 0) {
+        setTimeout(scrollToBottom, 100);
+      }
+    };
+
+    window.visualViewport.addEventListener('resize', handleVisualUpdate);
+    window.visualViewport.addEventListener('scroll', handleVisualUpdate);
+
+    return () => {
+      window.visualViewport?.removeEventListener('resize', handleVisualUpdate);
+      window.visualViewport?.removeEventListener('scroll', handleVisualUpdate);
+    };
+  }, []);
 
   const handleScroll = () => {
     if (!scrollRef.current) return;
@@ -72,7 +100,8 @@ export default function Chat() {
   const showTypingIndicator = isSending && !messages.some(m => m.id.toString().startsWith("streaming-"));
 
   return (
-    <div className="h-screen bg-background flex flex-col font-sans overflow-hidden">
+    // Change h-screen to h-[100dvh] to better handle dynamic mobile heights
+    <div className="h-[100dvh] bg-background flex flex-col font-sans overflow-hidden">
       <Navigation />
 
       <div
@@ -97,11 +126,12 @@ export default function Chat() {
         </div>
       </div>
 
-      {/* Scroll to bottom Button */}
+      {/* Scroll to bottom Button - adjusted for keyboard height */}
       <div className={cn(
-          "fixed bottom-36 left-1/2 -translate-x-1/2 transition-all duration-300 z-50",
+          "fixed left-1/2 -translate-x-1/2 transition-all duration-300 z-50",
           showScrollButton ? "opacity-100 scale-100" : "opacity-0 scale-90 pointer-events-none"
         )}
+        style={{ bottom: `calc(${keyboardHeight}px + 9rem)` }}
       >
         <Button
           variant="secondary"
@@ -113,8 +143,14 @@ export default function Chat() {
         </Button>
       </div>
 
-      {/* Compact Textarea Input */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background via-background/95 to-transparent">
+      {/* 2. Updated Input Container Logic */}
+      <div 
+        className="fixed left-0 right-0 p-4 bg-gradient-to-t from-background via-background/95 to-transparent transition-[bottom] duration-100 ease-out"
+        style={{ 
+          bottom: keyboardHeight,
+          paddingBottom: keyboardHeight > 0 ? '1rem' : 'calc(1rem + env(safe-area-inset-bottom))'
+        }}
+      >
         <div className="mx-auto max-w-[50rem]">
           <div className="flex items-end gap-2 bg-card/80 backdrop-blur-2xl border border-border/60 rounded-[1.5rem] p-1.5 shadow-soft">
             <Textarea
