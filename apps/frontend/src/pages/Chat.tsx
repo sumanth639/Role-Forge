@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { MessageBubble } from '@/components/MessageBubble';
 import { TypingIndicator } from '@/components/ui/TypingIndicator';
+import { LoadingAgent } from '@/components/LoadingAgent';
+import { AgentError } from '@/components/AgentError';
 import { Send, ArrowDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatProvider, useChat } from '@/contexts/ChatContext';
@@ -16,7 +18,7 @@ function ChatContent() {
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
-  const { agent, messages, inputValue, setInputValue, isSending, sendMessage } = useChat();
+  const { agent, messages, inputValue, setInputValue, isSending, sendMessage, isAgentLoading } = useChat();
 
   const scrollToBottom = () => {
     if (scrollRef.current) {
@@ -72,14 +74,12 @@ function ChatContent() {
     sendMessage(text);
   };
 
+  if (isAgentLoading) {
+    return <LoadingAgent />;
+  }
+
   if (!agent) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="rounded-md bg-[#0d1117] px-4 py-2 font-mono text-[13px] text-foreground border border-border/40">
-          <span className="text-primary mr-2">{'>'}</span> Getting Agent...
-        </div>
-      </div>
-    );
+    return <AgentError />;
   }
 
   const showTypingIndicator = isSending && !messages.some(m => m.id.toString().startsWith("streaming-"));

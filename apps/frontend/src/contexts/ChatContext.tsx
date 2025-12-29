@@ -13,6 +13,7 @@ interface ChatContextType {
   isSending: boolean;
   sendMessage: (text: string) => void;
   isLoading: boolean;
+  isAgentLoading: boolean;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -23,16 +24,25 @@ export function ChatProvider({ agentId, children }: { agentId: string | undefine
   const [messages, setMessages] = useState<any[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [isAgentLoading, setIsAgentLoading] = useState(true);
 
   const { isLoading, sendMessage: streamSendMessage } = useChatStream(agentId, chatId, setChatId, setMessages);
 
   useEffect(() => {
-    if (!agentId) return;
+    if (!agentId) {
+      setIsAgentLoading(false);
+      return;
+    }
+    setIsAgentLoading(true);
     fetchAgent(agentId)
-      .then(apiAgent => setAgent(mapApiAgentToUi(apiAgent)))
+      .then(apiAgent => {
+        setAgent(mapApiAgentToUi(apiAgent));
+        setIsAgentLoading(false);
+      })
       .catch(err => {
         console.error('Failed to fetch agent:', err);
         setAgent(null);
+        setIsAgentLoading(false);
       });
   }, [agentId]);
 
@@ -51,7 +61,8 @@ export function ChatProvider({ agentId, children }: { agentId: string | undefine
       setInputValue,
       isSending,
       sendMessage,
-      isLoading
+      isLoading,
+      isAgentLoading
     }}>
       {children}
     </ChatContext.Provider>
