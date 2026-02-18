@@ -25,6 +25,10 @@ export async function createServer(): Promise<Express> {
 
   app.use(express.json());
 
+  app.get("/", (_req, res) => {
+    res.status(200).json({ ok: true, service: "roleforge-backend" });
+  });
+
   app.get("/auth/:provider", (req, res) => {
     const { provider } = req.params;
     if (provider === "google") {
