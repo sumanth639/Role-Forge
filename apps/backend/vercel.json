@@ -1,9 +1,0 @@
-{
-  "buildCommand": "pnpm run build",
-  "outputDirectory": "dist",
-  "devCommand": "pnpm run dev",
-  "env": {
-    "NODE_ENV": "production",
-    "PORT": "4000"
-  }
-}
