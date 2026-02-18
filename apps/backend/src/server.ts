@@ -1,5 +1,5 @@
 import express, { Express } from "express";
-import cors from "cors";
+import cors, { type CorsOptions } from "cors";
 import { ApolloServer } from "@apollo/server";
 import { expressMiddleware } from "@apollo/server/express4";
 import { getAuthContext } from "./auth/context.js";
@@ -11,6 +11,38 @@ import { getGoogleUser, getGithubUser, handleOAuthLogin } from "./auth/oauth.js"
 export async function createServer(): Promise<Express> {
   const app = express();
 
+  const allowedOrigins = (process.env.FRONTEND_URLS ?? process.env.FRONTEND_URL ?? "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  const corsOptions: CorsOptions = {
+    origin(origin, callback) {
+      // Non-browser requests (curl, health checks) do not send Origin.
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      // If no frontend origin is configured, allow all origins to avoid hard failure.
+      if (allowedOrigins.length === 0) {
+        callback(null, true);
+        return;
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      console.warn("CORS blocked origin:", origin);
+      callback(null, false);
+    },
+    credentials: true,
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  };
+
   const server = new ApolloServer({
     typeDefs,
     resolvers,
@@ -18,10 +50,8 @@ export async function createServer(): Promise<Express> {
 
   await server.start();
 
-  app.use(cors({
-    origin: [`${process.env.FRONTEND_URL}`],
-    credentials: true,
-  }));
+  app.use(cors(corsOptions));
+  app.options("*", cors(corsOptions));
 
   app.use(express.json());
 
