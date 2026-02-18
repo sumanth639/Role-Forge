@@ -1,0 +1,21 @@
+{
+  "name": "roleforge-backend",
+  "version": 2,
+  "public": false,
+  "builds": [
+    {
+      "src": "Dockerfile",
+      "use": "@vercel/docker"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "dist/index.js"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production",
+    "PORT": "4000"
+  }
+}
